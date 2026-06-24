@@ -1,0 +1,46 @@
+name: CI
+
+# Se ejecuta en cada push y en cada pull request (todas las ramas).
+on:
+  push:
+  pull_request:
+
+# Cancela ejecuciones anteriores del mismo ref si llega un nuevo push.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build · ${{ matrix.project }}
+    runs-on: ubuntu-latest
+
+    # Este repo no tiene package.json raíz ni tests/linters: cada proyecto es
+    # un Vite independiente. El CI verifica que los proyectos ACTIVOS compilen.
+    # Para añadir más, agrega su carpeta a esta lista.
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - "07. Calculator"
+          - "react-welcome-home"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: "${{ matrix.project }}/package-lock.json"
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.project }}
+        # npm ci si el lockfile está sincronizado; npm install como respaldo.
+        run: npm ci || npm install
+
+      - name: Build
+        working-directory: ${{ matrix.project }}
+        run: npm run build
