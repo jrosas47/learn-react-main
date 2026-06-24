@@ -38,8 +38,28 @@ jobs:
 
       - name: Install dependencies
         working-directory: ${{ matrix.project }}
-        # npm ci si el lockfile está sincronizado; npm install como respaldo.
+        # npm ci (con caché) si el lockfile está sincronizado; npm install como respaldo.
         run: npm ci || npm install
+
+      - name: Lint (ESLint)
+        working-directory: ${{ matrix.project }}
+        run: npm run lint
+
+      - name: Formato (Prettier)
+        working-directory: ${{ matrix.project }}
+        run: npm run format:check
+
+      - name: Type check (solo si hay TypeScript)
+        working-directory: ${{ matrix.project }}
+        shell: bash
+        # "si usas TypeScript": solo corre tsc --noEmit cuando existe tsconfig.json.
+        run: |
+          if [ -f tsconfig.json ]; then
+            echo "tsconfig.json encontrado → ejecutando tsc --noEmit"
+            npx tsc --noEmit
+          else
+            echo "Sin tsconfig.json: proyecto JS, se omite el type check."
+          fi
 
       - name: Build
         working-directory: ${{ matrix.project }}
