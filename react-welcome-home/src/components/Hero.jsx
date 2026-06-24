@@ -14,7 +14,9 @@ export default function Hero({ brand, title, subtitle, cta, tagline }) {
         <div className="hero__actions">
           <a className="btn btn--primary" href={cta.href}>
             {cta.label}
-            <span className="btn__arrow" aria-hidden="true">→</span>
+            <span className="btn__arrow" aria-hidden="true">
+              →
+            </span>
           </a>
           <a className="btn btn--ghost" href="#categories">
             Browse Bikes
@@ -22,7 +24,9 @@ export default function Hero({ brand, title, subtitle, cta, tagline }) {
         </div>
       </div>
 
-      <p className="hero__tagline" aria-hidden="true">{tagline}</p>
+      <p className="hero__tagline" aria-hidden="true">
+        {tagline}
+      </p>
     </section>
   )
 }

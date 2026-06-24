@@ -3,6 +3,7 @@
 Este proyecto es un ejemplo sencillo en **React + Vite** para mostrar una **Home Page de bienvenida** y servir como base para explicar conceptos de React.
 
 La página principal muestra:
+
 - Un mensaje de bienvenida
 - Una lista de temas que puedes practicar
 - Instrucciones rápidas para levantar el proyecto
@@ -69,4 +70,3 @@ Ahí verás la Home Page de bienvenida hecha con React.
 - Probar hooks básicos como `useState` y `useEffect`
 
 Este proyecto está pensado como base para **aprender y explicar React** de forma sencilla.
-

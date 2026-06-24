@@ -26,8 +26,12 @@ export default function NavBar({ brand, region, links }) {
       </nav>
 
       <div className="nav__actions">
-        <a className="nav__action" href="#footer" aria-label="Search">⌕</a>
-        <a className="nav__action" href="#footer" aria-label="Account">◔</a>
+        <a className="nav__action" href="#footer" aria-label="Search">
+          ⌕
+        </a>
+        <a className="nav__action" href="#footer" aria-label="Account">
+          ◔
+        </a>
         <a className="nav__action nav__action--cart" href="#footer" aria-label="Cart">
           ⬡<span className="nav__cart-count">0</span>
         </a>

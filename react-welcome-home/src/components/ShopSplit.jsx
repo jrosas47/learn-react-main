@@ -9,7 +9,10 @@ export default function ShopSplit({ sections }) {
             <h2 className="shop-split__title">{sec.title}</h2>
             <p className="shop-split__blurb">{sec.blurb}</p>
             <a className="btn btn--outline" href="#categories">
-              {sec.cta} <span className="btn__arrow" aria-hidden="true">→</span>
+              {sec.cta}{' '}
+              <span className="btn__arrow" aria-hidden="true">
+                →
+              </span>
             </a>
           </div>
         </article>

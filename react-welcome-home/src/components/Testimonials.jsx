@@ -12,7 +12,9 @@ export default function Testimonials({ testimonials }) {
       <div className="reviews__grid">
         {testimonials.map((t) => (
           <figure className="review" key={t.source}>
-            <span className="review__quote-mark" aria-hidden="true">“</span>
+            <span className="review__quote-mark" aria-hidden="true">
+              “
+            </span>
             <blockquote className="review__text">{t.quote}</blockquote>
             <figcaption className="review__source">{t.source}</figcaption>
           </figure>

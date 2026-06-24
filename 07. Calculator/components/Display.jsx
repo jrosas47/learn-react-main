@@ -1,8 +1,8 @@
-import React from "react"
+import React from 'react'
 
 export default function Display({ expression, value }) {
   const formatValue = (val) => {
-    if (val === "Error") return "Error"
+    if (val === 'Error') return 'Error'
     const num = parseFloat(val)
     if (isNaN(num)) return val
     // Limitar decimales para que no desborde el display
@@ -12,7 +12,7 @@ export default function Display({ expression, value }) {
 
   return (
     <div className="display">
-      <div className="display-expression">{expression || "\u00A0"}</div>
+      <div className="display-expression">{expression || '\u00A0'}</div>
       <div className="display-value">{formatValue(value)}</div>
     </div>
   )
