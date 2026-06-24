@@ -80,9 +80,11 @@ En **cada `push`** y **cada `pull_request`**, GitHub Actions ejecuta —por cada
 | 2. Lint | `npm run lint` | Reglas de ESLint (React Hooks + React Refresh). |
 | 3. Formato | `npm run format:check` | Que el código respete el estilo de Prettier. |
 | 4. Type-check | `tsc --noEmit` *(condicional)* | Solo se ejecuta **si existe `tsconfig.json`**. Hoy se omite porque ambos proyectos son JS. |
-| 5. Build | `npm run build` | Que el proyecto compile en producción con Vite. |
+| 5. Tests + cobertura | `npm run coverage --if-present` | Ejecuta **Vitest** (`vitest run --coverage`) y genera el reporte de cobertura. |
+| 6. Artefacto de cobertura | `actions/upload-artifact` | Sube la carpeta `coverage/` como artefacto descargable (`coverage-calculator`, `coverage-welcome-home`). |
+| 7. Build | `npm run build` | Que el proyecto compile en producción con Vite. |
 
-Todo está definido en **`.github/workflows/ci.yml`**.
+Todo está definido en **`.github/workflows/ci.yml`**. La matriz usa entradas `{ project, slug }`: `project` es la carpeta y `slug` nombra el artefacto de cobertura.
 
 ## Archivos que componen la configuración
 
@@ -91,9 +93,13 @@ Todo está definido en **`.github/workflows/ci.yml`**.
 | `.github/workflows/ci.yml` | CI | Pipeline de GitHub Actions: triggers, matriz de proyectos y pasos. **Único, en la raíz.** |
 | `<proyecto>/eslint.config.mjs` | Configuración de ESLint | Flat config de ESLint 9 (estilo de la plantilla oficial de Vite). |
 | `<proyecto>/.prettierrc.json` | Configuración de Prettier | Estilo de formato: sin `;`, comillas simples, ancho 100, indentación 2. |
-| `<proyecto>/.prettierignore` | Configuración de Prettier | Excluye `dist`, `node_modules`, `package-lock.json` (y `src/data` en welcome-home). |
-| `<proyecto>/package.json` | Scripts + dependencias | Scripts `lint` / `format` / `format:check` y `devDependencies` de ESLint y Prettier. |
+| `<proyecto>/.prettierignore` | Configuración de Prettier | Excluye `dist`, `coverage`, `node_modules`, `package-lock.json` (y `src/data` en welcome-home). |
+| `<proyecto>/package.json` | Scripts + dependencias | Scripts `lint` / `format` / `format:check` / `test` / `coverage` y `devDependencies` de ESLint, Prettier, Vitest y Testing Library. |
 | `<proyecto>/package-lock.json` | Instalación | Lockfile actualizado por `npm install`; lo usan la caché del CI y `npm ci`. |
+| `<proyecto>/vitest.config.*` | Configuración de tests | Configura Vitest: entorno `jsdom`, archivo de setup y opciones de cobertura. (`vitest.config.mjs` en Calculator, `vitest.config.mts` en welcome-home.) |
+| `<proyecto>/.../test/setup.js` | Configuración de tests | Carga los matchers de `@testing-library/jest-dom`. |
+| `07. Calculator/lib/calculate.js` | Código testeado | Lógica pura de la calculadora extraída del componente para poder testearla. |
+| `*.test.js` / `*.test.jsx` | Tests | Las pruebas de Vitest (ver tabla de la sección **Tests**). |
 
 *(`<proyecto>` = `07. Calculator` y `react-welcome-home`; los archivos de configuración se duplican en cada uno porque son proyectos independientes.)*
 
@@ -137,7 +143,9 @@ Y se editó cada `package.json` para añadir los scripts y las `devDependencies`
 cd "07. Calculator"      && npm install
 cd "react-welcome-home"  && npm install
 ```
-- **Qué hace:** descarga e instala las nuevas devDependencies: `eslint`, `@eslint/js`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `eslint-config-prettier`, `globals` y `prettier`.
+- **Qué hace:** descarga e instala las devDependencies:
+  - **Lint/formato:** `eslint`, `@eslint/js`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `eslint-config-prettier`, `globals`, `prettier`.
+  - **Tests/cobertura:** `vitest`, `@vitest/coverage-v8`, `jsdom`, `@testing-library/react`, `@testing-library/dom`, `@testing-library/jest-dom`, `@testing-library/user-event`.
 - **Archivos afectados:** actualiza **`package-lock.json`** y crea/actualiza **`node_modules/`** (ignorado por git).
 
 ### 4. Formateo inicial (establecer una línea base verde)
@@ -151,12 +159,13 @@ npx prettier --write .   # ejecutado dentro de cada proyecto
 ### 5. Verificación local (reproduce lo que hará el CI)
 
 ```bash
-npm run lint           # ESLint  → debe terminar en exit 0
+npm run lint           # ESLint   → debe terminar en exit 0
 npm run format:check   # Prettier → "All matched files use Prettier code style!"
+npm run coverage       # Vitest   → tests en verde + reporte de cobertura
 npm run build          # Vite     → genera dist/ sin errores
 ```
 - **Qué hace:** corre localmente los mismos chequeos del CI. Si pasan en verde, el CI también pasará.
-- **Archivos afectados:** `npm run build` genera **`dist/`** (ignorado por git); los demás no escriben nada.
+- **Archivos afectados:** `npm run build` genera **`dist/`** y `npm run coverage` genera **`coverage/`** (ambos ignorados por git); los demás no escriben nada.
 
 ### 6. Commit y push
 
@@ -166,6 +175,31 @@ git commit -m "ci: añade ESLint, Prettier y type-check condicional a los proyec
 git push
 ```
 - **Qué hace:** versiona los archivos de configuración, los `package.json`/`package-lock.json` y el código reformateado. Al hacer push se dispara el CI.
+
+## Tests
+
+Las pruebas usan **[Vitest](https://vitest.dev/)** (+ **Testing Library** para componentes). Se ejecutan con `npm test` dentro de cada proyecto y forman parte del CI.
+
+| Proyecto | Archivo de test | Qué prueba | Tipo |
+|----------|-----------------|------------|------|
+| `07. Calculator` | `lib/calculate.test.js` | Las operaciones (`+ − × ÷`), la división entre cero → `"Error"` y el recorte de imprecisiones de punto flotante. | Unitario (lógica pura) |
+| `07. Calculator` | `components/Calculator.test.jsx` | Renderiza la calculadora y **simula pulsaciones** de botones (`7 + 8 =` → `15`, `6 × 2 − 4 =` → `8`, `AC` reinicia, `÷ 0` → `Error`), verificando el visor. | Integración (componente) |
+| `react-welcome-home` | `src/components/Hero.test.jsx` | Que el `Hero` renderiza título/subtítulo y el CTA con su enlace. | Componente (render) |
+| `react-welcome-home` | `src/components/NavBar.test.jsx` | Que el `NavBar` pinta todos los enlaces y que el botón hamburguesa alterna `aria-expanded`. | Componente (interacción) |
+
+Para añadir un test: crea un archivo `*.test.js` / `*.test.jsx` junto al código que pruebas; Vitest lo detecta automáticamente.
+
+> 🧩 En el Calculator se extrajo la lógica pura a `lib/calculate.js` (antes vivía dentro de `components/Calculator.jsx`) para poder probarla sin renderizar el componente. El comportamiento de la app no cambió.
+
+### Cobertura de código
+
+`npm run coverage` ejecuta los tests y genera un reporte con el proveedor **v8** de Vitest en la carpeta `coverage/` (ignorada por git):
+
+- **En consola:** una tabla resumen (`% Stmts`, `% Branch`, `% Funcs`, `% Lines`).
+- **HTML navegable:** abre `coverage/index.html` en el navegador.
+- **`coverage/lcov.info`:** formato estándar para integrarlo con herramientas externas (Codecov, SonarQube, etc.).
+
+En el CI, cada proyecto **sube su carpeta `coverage/` como artefacto** descargable desde la página de la ejecución en *Actions* (`coverage-calculator` y `coverage-welcome-home`). No hay umbral mínimo configurado: la cobertura es informativa, no bloquea el build.
 
 ## Comandos de uso diario
 
@@ -177,5 +211,8 @@ Ejecutar **dentro de la carpeta del proyecto** (`cd "07. Calculator"` o `cd "rea
 | `npm run lint` | Reporta problemas de ESLint (no modifica archivos). |
 | `npm run format` | **Reescribe** los archivos aplicando Prettier. |
 | `npm run format:check` | Solo verifica el formato (no escribe) — es lo que corre el CI. |
+| `npm test` | Ejecuta los tests una vez con Vitest (`vitest run`). |
+| `npm run test:watch` | Ejecuta Vitest en modo interactivo (re-corre al guardar). |
+| `npm run coverage` | Ejecuta los tests y genera el reporte de cobertura → `coverage/`. |
 | `npm run build` | Build de producción → `dist/`. |
 | `npm run preview` | Sirve el build de producción. |

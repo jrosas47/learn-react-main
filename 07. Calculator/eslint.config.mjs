@@ -5,7 +5,16 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import prettier from 'eslint-config-prettier'
 
 export default [
-  { ignores: ['dist', 'node_modules', '**/vite.config.*', 'eslint.config.mjs'] },
+  {
+    ignores: [
+      'dist',
+      'coverage',
+      'node_modules',
+      '**/vite.config.*',
+      '**/vitest.config.*',
+      'eslint.config.mjs',
+    ],
+  },
   js.configs.recommended,
   {
     files: ['**/*.{js,jsx,mjs}'],

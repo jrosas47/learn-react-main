@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import Display from './Display'
 import Button from './Button'
+import { OPERATOR_MAP, calculate, trimResult } from '../lib/calculate'
 
 const BUTTONS = [
   { label: 'AC', variant: 'function' },
@@ -28,33 +29,6 @@ const BUTTONS = [
   { label: '.', variant: 'number' },
   { label: '=', variant: 'equals' },
 ]
-
-const OPERATOR_MAP = { '÷': '/', '×': '*', '−': '-', '+': '+' }
-
-function calculate(prev, current, operator) {
-  const a = parseFloat(prev)
-  const b = parseFloat(current)
-  switch (operator) {
-    case '/':
-      return b === 0 ? 'Error' : String(a / b)
-    case '*':
-      return String(a * b)
-    case '-':
-      return String(a - b)
-    case '+':
-      return String(a + b)
-    default:
-      return current
-  }
-}
-
-function trimResult(value) {
-  if (value === 'Error') return value
-  const num = parseFloat(value)
-  if (isNaN(num)) return value
-  // Evitar imprecisiones flotantes excesivas
-  return parseFloat(num.toPrecision(12)).toString()
-}
 
 export default function Calculator() {
   const [darkMode, setDarkMode] = useState(true)
