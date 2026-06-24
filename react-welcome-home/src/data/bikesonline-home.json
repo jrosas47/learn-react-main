@@ -1,0 +1,65 @@
+{
+  "source": "https://bikesonline.com/",
+  "scrapedAt": "2026-06-14",
+  "site": {
+    "name": "BikesOnline",
+    "region": "US",
+    "title": "BikesOnline US: Ride More, for Less | Premium Bikes Delivered to You!",
+    "tagline": "Ride More, For Less"
+  },
+  "topBar": "Pay Using Your HSA/FSA Funds! · See Deals, Offers & Outlet Bikes",
+  "announcementBar": [
+    "5% Best Price Guaranteed",
+    "Up to 60-Day Returns",
+    "Quick & Easy Assembly"
+  ],
+  "nav": ["Electric", "Mountain", "Road", "Gravel", "Kids", "City & Hybrid", "Clothing", "Parts", "Sale"],
+  "hero": {
+    "brand": "POLYGON",
+    "title": "STRATTOS",
+    "subtitle": "Premium Spec. Smarter Price.",
+    "cta": { "label": "Shop Now", "href": "/collections/road-bikes" }
+  },
+  "categories": [
+    { "name": "Electric", "blurb": "Pedal further, climb higher", "image": "https://bikesonline-us.myshopify.com/cdn/shop/files/PLGN_Collosus_N8XE.jpg" },
+    { "name": "Mountain", "blurb": "Trail, enduro & downhill", "image": "https://bikesonline-us.myshopify.com/cdn/shop/files/siskiu_t9_thumbnail.jpg" },
+    { "name": "Road", "blurb": "Speed, endurance & racing", "image": "https://bikesonline-us.myshopify.com/cdn/shop/files/PLGN_Performance_Helios_A0.jpg" },
+    { "name": "Gravel", "blurb": "Adventure beyond the tarmac", "image": "https://bikesonline-us.myshopify.com/cdn/shop/files/adventure_polygon_R6X_228_139.jpg" },
+    { "name": "Kids", "blurb": "Built for the next generation", "image": "https://bikesonline-us.myshopify.com/cdn/shop/files/trid_zz_thumbnail.jpg" },
+    { "name": "City & Hybrid", "blurb": "Commute, cruise & explore", "image": "https://bikesonline-us.myshopify.com/cdn/shop/files/Kalosi_Altera_ST_Collection.jpg" }
+  ],
+  "shopSections": [
+    { "title": "Clothing", "blurb": "Jerseys, shorts, helmets & shoes", "cta": "Shop Now" },
+    { "title": "Parts & Accessories", "blurb": "Tires, pedals, lights & racks", "cta": "Shop Now" }
+  ],
+  "valueProps": [
+    { "title": "5% Best Price", "detail": "Guaranteed", "icon": "tag" },
+    { "title": "30-Day", "detail": "Bike Returns", "icon": "return" },
+    { "title": "Free Shipping", "detail": "Over $120*", "icon": "ship" },
+    { "title": "Buy One", "detail": "Plant One", "icon": "tree" }
+  ],
+  "brands": ["Polygon", "Superior", "Entity", "GT", "Intense", "3T", "Scott", "Marin"],
+  "collectionBanners": [
+    { "kicker": "Gnarliest", "title": "Polygon x Silk Road Race", "cta": "Explore" },
+    { "kicker": "Most Capable", "title": "Polygon Siskiu T8", "cta": "Explore" },
+    { "kicker": "Craziest", "title": "Marin x Red Bull Hardline", "cta": "Explore" }
+  ],
+  "testimonials": [
+    { "source": "Bikerumor!", "quote": "With a clever set of flip chips for both axles, the new Polygon Tambora all-road bike turns into a gravel bike and back, giving you two bikes in one." },
+    { "source": "AMB", "quote": "After riding the new Polygon Siskiu T8, I can honestly say that if you ride a very capable bike, it is a very content mountain bike. Fun, capable, and trail-ready." },
+    { "source": "Pinkbike", "quote": "Very smart spec, with that top-of-the-line Vivid Ultimate shock, strong Maven Bronze brakes, and a workhorse SRAM GX drivetrain, all parts that are well suited to the bike's intentions." }
+  ],
+  "footer": {
+    "columns": [
+      { "heading": "Company", "links": ["Our Promise", "About Us", "Fleet Program", "Affiliate Program", "Referral Program", "Job Opportunities", "Blog"] },
+      { "heading": "Order", "links": ["Ride Now, Pay Later", "Track Your Order", "Shipping", "Order & Payment", "Return & Exchanges", "Start a Return", "Commercial Sales", "Click N Collect"] },
+      { "heading": "Support", "links": ["Contact Us", "Help Centre", "Assembly & Tutorials", "Exploded Views", "Buying Guides", "Service Network", "Warranty Coverage", "Consumer Guarantee"] },
+      { "heading": "Legal", "links": ["Terms & Conditions", "Privacy Policy", "Service Network"] }
+    ],
+    "newsletter": {
+      "heading": "Stay In The Loop",
+      "blurb": "Subscribe to our newsletter for the latest news and offers.",
+      "cta": "Subscribe"
+    }
+  }
+}

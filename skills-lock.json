@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "b2c-custom-api-development": {
+      "source": "salesforcecommercecloud/b2c-developer-tooling",
+      "sourceType": "github",
+      "computedHash": "5333ac7b98498e019a65aad420df61fedfd149e0eb8b02f1ef05de23592ea176"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "516bd2154eb843a8240e43d5b285229129853114ad7075a5e141e1c08e408c84"
+    }
+  }
+}
