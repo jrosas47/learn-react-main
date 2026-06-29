@@ -137,6 +137,19 @@ El repositorio combina varias capas, todas automatizadas en GitHub Actions:
 >
 > ⚙️ El auto-merge requiere configuración **única** en *Settings* (permitir auto-merge, squash y *branch protection*). Ver [**Activar el auto-merge y proteger `main`**](#activar-el-auto-merge-y-proteger-main) abajo.
 
+### CodeQL: una sola configuración (este repo usa *advanced*)
+
+CodeQL tiene **dos modos que no pueden coexistir**:
+
+- **Default setup** — lo gestiona GitHub desde *Settings*, sin workflow.
+- **Advanced setup** — el workflow `codeql.yml` (es el que usa este repo: permite `queries: security-and-quality`, *schedule* semanal y control total).
+
+Si el **Default setup está activo a la vez** que el workflow avanzado, GitHub **rechaza** el SARIF del workflow con el error:
+
+> *"Code Scanning could not process the submitted SARIF file"* — en el log suele detallar *"advanced configurations cannot be processed when the default setup is enabled"*.
+
+**Solución (una vez):** *Settings → Code security → Code scanning → CodeQL analysis →* **Switch to advanced** (desactiva el Default). El asistente ofrecerá crear un `codeql.yml`: **no lo commitees** — el del repo ya existe y lo sobrescribirías. Después **re-ejecuta** el run de CodeQL y el SARIF se acepta.
+
 ### Comparativa: qué hace cada herramienta y qué se solapa
 
 Varias capas **se solapan en parte**. Esta tabla aclara la utilidad propia de cada una y qué añade respecto a las demás:
@@ -159,6 +172,8 @@ Varias capas **se solapan en parte**. Esta tabla aclara la utilidad propia de ca
 - **Lo que SOLO aporta SonarQube:** la **Quality Gate** unificada, la **duplicación de código** y la **deuda técnica** con ratings.
 
 ### Activar el auto-merge y proteger `main`
+
+> **¿Qué es y para qué sirve la *branch protection*?** Son reglas sobre `main` que impiden que entre código sin pasar por el filtro: exigen un **PR** (nada de `push` directo a `main`), que los **checks del CI estén en verde** antes de fusionar y, opcionalmente, **revisión**. Sin ella, GitHub te deja mergear aunque el CI esté en rojo; **con** ella, el CI se vuelve una **puerta real** y el auto-merge de Dependabot solo fusiona lo que pasa los checks. También bloquea el *force-push* y el borrado de la rama.
 
 El auto-merge necesita configuración en *Settings* del repositorio (una sola vez). Puedes hacerlo desde la **UI de GitHub** o con la **CLI (`gh`)**.
 
