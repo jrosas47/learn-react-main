@@ -86,6 +86,7 @@ Todo lo configurado en los proyectos activos (`07. Calculator/` y `react-welcome
 | **Seguridad — CVEs** | `npm audit` que **bloquea** en CI ante *high/critical* en producción; **CodeQL** (análisis estático); **Dependabot** (*version* + *security updates*). | `ci.yml`, `codeql.yml`, `dependabot.yml` |
 | **Seguridad — cadena de suministro** | `.npmrc` con `ignore-scripts=true` (bloquea scripts de instalación de dependencias). | `<proyecto>/.npmrc` |
 | **Automatización de PRs** | Auto-merge de los PRs *patch* de Dependabot, solo con el CI en verde. | `dependabot-auto-merge.yml` |
+| **Despliegue (CD)** | Publicación de ambos proyectos en **GitHub Pages** bajo subrutas, vía workflow al hacer push a `main`. | `.github/workflows/deploy.yml`, `pages-index.html` |
 | **Documentación** | Configuración, comandos, paso a paso y operación (este README). | `README.md`, `CLAUDE.md` |
 
 > Cada fila tiene su sección detallada más abajo. Los archivos de configuración se **duplican por proyecto** porque son Vite independientes.
@@ -360,6 +361,8 @@ En el proyecto Sonar → *Information* obtienes el markdown del badge. Como hay 
 | Archivo | Acción asociada | Propósito |
 |---------|-----------------|-----------|
 | `.github/workflows/ci.yml` | CI | Pipeline de GitHub Actions: triggers, matriz de proyectos y pasos. **Único, en la raíz.** |
+| `.github/workflows/deploy.yml` | Despliegue (CD) | Publica ambos proyectos en GitHub Pages bajo subrutas, al hacer push a `main`. |
+| `.github/pages-index.html` | Despliegue (CD) | Landing del sitio de Pages que enlaza `/calculator` y `/welcome-home`. |
 | `<proyecto>/eslint.config.mjs` | Configuración de ESLint | Flat config de ESLint 9 (estilo de la plantilla oficial de Vite). |
 | `<proyecto>/.prettierrc.json` | Configuración de Prettier | Estilo de formato: sin `;`, comillas simples, ancho 100, indentación 2. |
 | `<proyecto>/.prettierignore` | Configuración de Prettier | Excluye `dist`, `coverage`, `node_modules`, `package-lock.json` (y `src/data` en welcome-home). |
@@ -610,3 +613,48 @@ npm ci                                    # instalación reproducible desde pack
 npm view <paquete>                        # inspeccionar un paquete antes de añadirlo
 npm rebuild <paquete>                     # ejecutar a propósito los scripts de un paquete de confianza
 ```
+
+---
+
+# Despliegue continuo (GitHub Pages)
+
+Los dos proyectos activos se publican como **sitio estático** en **GitHub Pages**, bajo subrutas, mediante el workflow `.github/workflows/deploy.yml`.
+
+## Por qué Pages (hosting estático)
+
+GitHub Pages solo **sirve archivos** (HTML/CSS/JS) por CDN; **no ejecuta código en servidor**. Calculator y react-welcome-home son **SPAs estáticas** (Vite genera un `dist/` de archivos y toda la lógica corre en el navegador), así que encajan perfecto y es **gratis**. *(No serviría para apps con backend/SSR — Next.js con API, Express, etc. —, que necesitan un host que ejecute código.)*
+
+## Cómo funciona el workflow
+
+`deploy.yml` se dispara **al hacer push a `main`** (o manualmente con *Run workflow*) y:
+
+1. Compila cada proyecto con su **`--base`** correspondiente (pasado por CLI para **no tocar** los `vite.config`):
+   - Calculator → `--base=/learn-react-main/calculator/`
+   - welcome-home → `--base=/learn-react-main/welcome-home/`
+   > Pages sirve en `https://<usuario>.github.io/<repo>/`, por eso el `base` incluye el nombre del repo y la subruta; sin él, los assets (`/assets/...`) darían **404**.
+2. **Ensambla** un único sitio en `_site/`: `_site/calculator/`, `_site/welcome-home/` y un `index.html` (copiado de `.github/pages-index.html`) que los enlaza.
+3. **Publica** con `actions/upload-pages-artifact` + `actions/deploy-pages` (entorno `github-pages`).
+
+## Configuración (única)
+
+**Settings → Pages → Build and deployment → Source = `GitHub Actions`** (no *Deploy from a branch*). **Sin esto el deploy falla.**
+
+## Cómo validar
+
+| Dónde | Qué confirmas |
+|---|---|
+| **GitHub → Actions** | El run **"Deploy a GitHub Pages"** termina en verde; el job *Deploy* muestra la **URL** publicada. |
+| **Navegador** | La landing carga y los enlaces a `/calculator/` y `/welcome-home/` abren cada app. |
+
+URLs publicadas:
+
+- Landing: `https://jrosas47.github.io/learn-react-main/`
+- 🧮 Calculator: `https://jrosas47.github.io/learn-react-main/calculator/`
+- 🏠 welcome-home: `https://jrosas47.github.io/learn-react-main/welcome-home/`
+
+## Notas
+
+- El `--base` se pasa **solo en el CI**: tu `npm run dev`/`build` local no cambia.
+- El deploy **solo corre en `main`** (no en ramas ni PRs): el sitio refleja siempre lo fusionado.
+- El primer despliegue puede tardar 1–2 min en propagarse en el CDN de Pages.
+- Si renombras el repositorio, actualiza los `--base` de `deploy.yml` (incluyen el nombre del repo).
