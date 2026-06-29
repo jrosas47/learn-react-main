@@ -29,10 +29,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # Sonar necesita el historial para detectar "código nuevo" y decorar PRs
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -79,7 +81,7 @@ jobs:
 
       - name: Subir reporte de cobertura
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ matrix.slug }}
           path: ${{ matrix.project }}/coverage
@@ -93,6 +95,14 @@ jobs:
           flags: ${{ matrix.slug }} # separa la cobertura de cada proyecto (calculator / welcome-home)
           name: ${{ matrix.slug }}
           fail_ci_if_error: false # una subida fallida no rompe el CI
+
+      - name: Análisis SonarQube Cloud
+        uses: SonarSource/sonarqube-scan-action@v5
+        with:
+          projectBaseDir: ${{ matrix.project }} # analiza dentro de la carpeta del proyecto (lee su sonar-project.properties)
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
 
       - name: Build
         working-directory: ${{ matrix.project }}
