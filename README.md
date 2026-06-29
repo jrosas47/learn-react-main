@@ -177,7 +177,59 @@ Varias capas **se solapan en parte**. Esta tabla aclara la utilidad propia de ca
 
 El auto-merge necesita configuración en *Settings* del repositorio (una sola vez). Puedes hacerlo desde la **UI de GitHub** o con la **CLI (`gh`)**.
 
-#### Opción A — Desde la UI de GitHub (paso a paso)
+#### Estrategias de merge (qué casillas marcar)
+
+En *Settings → General → Pull Requests* hay cuatro casillas. Las tres primeras eligen **cómo** se fusiona un PR; la cuarta habilita la auto-fusión:
+
+| Opción | Qué hace | Implicación en el historial |
+|---|---|---|
+| **Allow merge commits** | Fusiona creando un *merge commit*. | Conserva **todos** los commits del PR + un commit de merge (historia ramificada, con "burbujas"). |
+| **Allow squash merging** | Aplasta el PR en **un solo commit**. | Historia **lineal y limpia**: 1 PR = 1 commit en `main`. |
+| **Allow rebase merging** | Reaplica los commits del PR sobre `main`. | Historia **lineal**, pero conserva cada commit (sin merge commit). |
+| **Allow auto-merge** | Permite que un PR se fusione **solo** cuando sus checks requeridos pasan. | No afecta el historial; es el "interruptor" del auto-merge. |
+
+> ⚠️ **Imprescindibles en este repo:** **Allow squash merging** y **Allow auto-merge**. El workflow `dependabot-auto-merge.yml` ejecuta `gh pr merge --auto --squash`, así que sin esas dos el auto-merge de Dependabot falla.
+
+**Combinación recomendada según la estrategia de historial que prefieras:**
+
+| Estrategia | Marca | Desmarca | Para quién |
+|---|---|---|---|
+| **Lineal limpia** (recomendada) | Squash + Auto-merge | Merge commits, Rebase | 1 PR = 1 commit; lo más fácil de leer. Encaja con el auto-merge por *squash*. |
+| **Flexible** (lo que tienes ahora) | Las 4 | — | Eliges la estrategia en cada PR; cómodo, pero historial mixto. |
+| **Lineal conservando commits** | Rebase + Squash + Auto-merge | Merge commits | Lineal, pero puedes preservar los commits de un PR cuando interese. |
+
+> No hay opción "incorrecta": mientras **Squash** y **Auto-merge** sigan marcadas, todo funciona. El resto es preferencia de estilo del historial.
+
+**Otra casilla — *Always suggest updating pull request branches*:** muestra **siempre** el botón **"Update branch"** cuando `main` avanzó, para traer lo último de `main` a la rama del PR con un clic (aunque no haya conflictos ni lo exija la protección). Cada actualización crea un *merge commit* en la rama del PR, pero **con _squash_ ese ruido se colapsa al fusionar**. Es **opcional** y **no afecta al auto-merge**: actívala por comodidad o déjala desactivada si prefieres menos ruido en los PRs.
+
+> No confundir con *Require branches to be up to date before merging* (de la *branch protection*): esa **obliga** a que la rama esté al día antes de poder fusionar; *Always suggest…* solo **sugiere** el botón, no obliga.
+
+#### Classic vs. Ruleset (cuál usar)
+
+GitHub ofrece **dos sistemas** para proteger ramas. **Aquí seguimos el _classic_** (más simple y suficiente para proteger `main`); el *ruleset* es la alternativa moderna y más potente que GitHub recomienda a futuro. Ambos logran lo mismo: exigir PR + checks del CI en verde.
+
+| | **Classic branch protection** | **Branch ruleset** |
+|---|---|---|
+| Estado | Original (en mantenimiento). | Nuevo, **recomendado** por GitHub. |
+| Composición | 1 regla por patrón; no se combinan. | Varias reglas en **capas** con prioridad. |
+| Modos | Solo activo. | **Active / Evaluate (prueba) / Disabled**. |
+| Extras | Lo básico. | *Bypass lists*, reglas de commits, **export/import JSON**. |
+| Targeting | Patrón de rama. | *Default branch*, patrones múltiples, ramas/tags. |
+
+**Equivalencia de ajustes** (lo que marcas en *classic* → su equivalente en *ruleset*):
+
+| Classic | Ruleset |
+|---|---|
+| *Branch name pattern* = `main` | **Target branches** → *Include default branch* (o patrón `main`) |
+| *Require a pull request before merging* | Regla **Require a pull request before merging** |
+| *Require status checks to pass* + checks | Regla **Require status checks to pass** + añadir los checks |
+| *Require branches to be up to date* | Casilla homónima dentro de esa regla |
+| *Do not allow bypassing* | **Bypass list** vacía + *Enforcement status: Active* |
+| (implícito) bloquear `push` directo / *force-push* | Reglas **Restrict deletions** + **Block force pushes** |
+
+> Para un *ruleset* equivalente: *Settings → Rules → Rulesets → New branch ruleset* → *Enforcement: Active*, *Target: Default branch*, y activa las reglas de la columna derecha. El modo *Evaluate* permite probarlo sin bloquear todavía.
+
+#### Opción A — Classic, paso a paso (lo que usamos)
 
 **Paso 1 · Habilitar auto-merge y squash**
 
@@ -185,21 +237,29 @@ El auto-merge necesita configuración en *Settings* del repositorio (una sola ve
 2. Baja a la sección **Pull Requests**.
 3. Marca **Allow auto-merge** y **Allow squash merging** (se guarda solo).
 
-**Paso 2 · Crear la regla de protección de `main`**
+**Paso 2 · Crear la regla *classic* de `main`**
 
 1. Repo → **Settings** → **Branches**.
-2. En **Branch protection rules** → **Add branch protection rule**.
+2. En **Branch protection rules** → **Add classic branch protection rule**.
 3. **Branch name pattern:** escribe `main`.
-4. Marca **Require a pull request before merging** (impide el `push` directo a `main`).
-   - ⚠️ Deja **Require approvals** en **0** / sin marcar: si exiges aprobación, los PRs de **Dependabot no se auto-fusionarán** solos. (Si prefieres revisión humana, márcalo y asume merge manual.)
-5. Marca **Require status checks to pass before merging**.
-   - *(Opcional, más estricto)* marca también **Require branches to be up to date before merging**.
-6. En el buscador de checks, añade los que quieras **exigir**:
-   - **`CI · 07. Calculator`** ✅ (obligatorio)
-   - **`CI · react-welcome-home`** ✅ (obligatorio)
-   - *(opcionales)* `Analyze (javascript)` (CodeQL), `codecov/project`, `codecov/patch`, `SonarQube Code Analysis`.
-7. *(Opcional)* Marca **Do not allow bypassing the above settings** para que la regla aplique también a administradores.
-8. Pulsa **Create** (o **Save changes**).
+4. ✅ **Require a pull request before merging** (impide el `push` directo a `main`).
+   - ⚠️ Deja **Required approvals** en **0**: si exiges aprobación, los PRs de **Dependabot no se auto-fusionarán** solos. (Si prefieres revisión humana, súbelo a 1 y asume merge manual.)
+   - *Dismiss stale approvals* / *Require review from Code Owners*: **sin marcar**.
+5. ✅ **Require status checks to pass before merging**.
+   - *(Opcional, más estricto)* ✅ **Require branches to be up to date before merging**.
+   - En el buscador añade los checks a **exigir**:
+     - **`CI · 07. Calculator`** y **`CI · react-welcome-home`** (obligatorios).
+     - *(opcionales)* `Analyze (javascript)` (CodeQL), `codecov/project`, `codecov/patch`, `SonarQube Code Analysis`.
+6. *(Opcional)* ✅ **Require conversation resolution before merging** (obliga a resolver los comentarios del PR antes de fusionar).
+7. ✅ **Do not allow bypassing the above settings** (aplica también a administradores) — recomendado.
+8. **Deja SIN marcar** (no los necesitas aquí): *Require signed commits*, *Require linear history*, *Require deployments to succeed*, *Lock branch*.
+9. Pulsa **Create** (o **Save changes**).
+
+**Paso 3 · Verificar que quedó activa**
+
+- Abre (o reutiliza) un PR hacia `main`: el botón **Merge** debe estar **bloqueado** hasta que los checks requeridos estén en verde.
+- Un `git push` directo a `main` debe ser **rechazado** por el remoto.
+- En *Settings → Branches* la regla aparece listada junto a `main`.
 
 > 💡 Si un check no aparece en el buscador, es que aún no ha corrido: haz un push o abre un PR para que se ejecute **al menos una vez** y vuelve a buscarlo.
 >
