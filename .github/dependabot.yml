@@ -1,32 +1,54 @@
 version: 2
 
+# Estrategia de agrupado para REDUCIR EL RUIDO:
+#   - Un PR para TODAS las GitHub Actions.
+#   - Por cada proyecto npm, un PR para "producción" (react/react-dom) y otro
+#     para "desarrollo" (eslint, prettier, vitest, vite, etc.).
+#   Los grupos incluyen minor/patch Y major, así un major (p. ej. vitest 2→4)
+#   ya no genera un PR suelto, sino que cae en el grupo que le toca.
+#
+#   Trade-off: al agrupar también los major, casi ningún PR será un "patch
+#   suelto", por lo que el auto-merge de patches (dependabot-auto-merge.yml)
+#   rara vez se activará: los PRs agrupados se revisan y fusionan a mano.
+
 updates:
-  # Acciones usadas en los workflows de .github/workflows
+  # ① Acciones usadas en los workflows de .github/workflows
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      # Junta TODAS las actualizaciones de actions en un solo PR.
+      actions:
+        patterns: ["*"]
 
-  # Proyecto activo: Calculator
+  # ② Proyecto activo: Calculator
   - package-ecosystem: npm
     directory: "/07. Calculator"
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
     groups:
-      # Agrupa minor/patch en un solo PR por proyecto para reducir ruido.
-      all-dependencies:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
+      # Dependencias de ejecución (react, react-dom): deben subir juntas.
+      production:
+        dependency-type: "production"
+        update-types: ["minor", "patch", "major"]
+      # Tooling (eslint, prettier, vitest, vite, testing-library, ...).
+      development:
+        dependency-type: "development"
+        update-types: ["minor", "patch", "major"]
 
-  # Proyecto activo: react-welcome-home
+  # ③ Proyecto activo: react-welcome-home
   - package-ecosystem: npm
     directory: "/react-welcome-home"
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
     groups:
-      all-dependencies:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
+      production:
+        dependency-type: "production"
+        update-types: ["minor", "patch", "major"]
+      development:
+        dependency-type: "development"
+        update-types: ["minor", "patch", "major"]

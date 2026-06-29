@@ -122,7 +122,7 @@ El repositorio combina varias capas, todas automatizadas en GitHub Actions:
 |-------------|---------|----------|--------------|
 | **npm audit** | `.github/workflows/ci.yml` | Audita dependencias; **bloquea** ante vulnerabilidades *high/critical* en producción (`react`/`react-dom`) y reporta el resto sin bloquear. | En cada push y PR, por proyecto. |
 | **CodeQL** | `.github/workflows/codeql.yml` | Análisis estático de seguridad de GitHub sobre el código JS/JSX; los hallazgos aparecen en **Security → Code scanning**. | Push/PR a `main` + semanal (lunes 04:23 UTC). |
-| **Dependabot** | `.github/dependabot.yml` | Abre PRs automáticos con actualizaciones de dependencias (npm de los 2 proyectos activos + las GitHub Actions); agrupa *minor*/*patch* para reducir ruido. | Semanal. |
+| **Dependabot** | `.github/dependabot.yml` | Abre PRs automáticos con actualizaciones de dependencias (npm de los 2 proyectos activos + las GitHub Actions). **Agrupado para reducir ruido:** 1 PR para todas las Actions y, por proyecto npm, 1 PR de *producción* (`react`/`react-dom`) y 1 de *desarrollo* (tooling) — incluyendo *major*. | Semanal. |
 | **Auto-merge** | `.github/workflows/dependabot-auto-merge.yml` | Activa el auto-merge de los PRs de Dependabot de tipo **patch**; el merge solo ocurre cuando el CI pasa en verde. | En cada PR de Dependabot. |
 | **`.npmrc` (`ignore-scripts`)** | `<proyecto>/.npmrc` | `ignore-scripts=true`: npm **no ejecuta** los scripts de ciclo de vida (`pre`/`post`/`install`) de las dependencias al instalar. Defensa contra malware que se ejecuta durante `npm install`. | En cada `npm ci`/`npm install` (local y CI). |
 
@@ -368,7 +368,7 @@ Instalar un paquete de npm puede ejecutar **código de terceros en tu máquina y
 ## Capas configuradas en este repo
 
 1. **`npm audit` en el CI** — `npm audit --omit=dev --audit-level=high` **bloquea** el build ante vulnerabilidades *high/critical* en dependencias de producción; la auditoría completa se reporta sin bloquear.
-2. **Dependabot** (`.github/dependabot.yml`) — abre PRs semanales con actualizaciones y agrupa *minor*/*patch*. Solo abre PRs: **no instala nada en tu máquina** (tu `node_modules` solo cambia cuando tú haces `git pull` + `npm install`).
+2. **Dependabot** (`.github/dependabot.yml`) — abre PRs semanales con actualizaciones, **agrupados** (1 PR para las Actions; por proyecto npm, 1 de *producción* y 1 de *desarrollo*, incluyendo *major*) para reducir el ruido. Solo abre PRs: **no instala nada en tu máquina** (tu `node_modules` solo cambia cuando tú haces `git pull` + `npm install`).
 3. **Auto-merge conservador** (`.github/workflows/dependabot-auto-merge.yml`) — fusiona automáticamente **solo** los PRs de tipo *patch* y **solo si el CI pasa en verde**; *minor*/*major* requieren tu aprobación.
 4. **CodeQL** (`.github/workflows/codeql.yml`) — análisis estático de seguridad de tu propio código.
 5. **`.npmrc` con `ignore-scripts=true`** (en cada proyecto activo) — npm **no ejecuta** los scripts `preinstall`/`install`/`postinstall` de las dependencias. Es la defensa directa contra el malware que se ejecuta durante `npm install`.
@@ -418,7 +418,7 @@ Dependabot abre PRs por **dos vías independientes**; conviene distinguirlas par
 1. **Deja correr el CI** del PR (lint + tests + build + audit). Si está en rojo, no lo fusiones.
 2. **Patches y _minors_ de bajo riesgo** (p. ej. `postcss`, `picomatch`) → seguros de fusionar tras el CI verde.
 3. ⚠️ **PRs agrupados con saltos de _major_** (p. ej. `vite 5 → 8`, `@vitejs/plugin-react 4 → 6`) **pueden romper el build**. Pruébalos en local (`npm ci && npm run build && npm test`) antes de fusionar, o ciérralos si no quieres saltar de *major* ahora.
-4. **Auto-merge:** solo los *patch* se fusionan solos, y únicamente con el CI en verde y tras configurar *branch protection* (ver [arriba](#activar-el-auto-merge-y-proteger-main)).
+4. **Auto-merge:** solo los *patch* se fusionan solos, y únicamente con el CI en verde y tras configurar *branch protection* (ver [arriba](#activar-el-auto-merge-y-proteger-main)). Nota: como el agrupado incluye *major*, casi ningún PR será un *patch* suelto, así que en la práctica el auto-merge rara vez se activa y los PRs agrupados se fusionan a mano.
 
 ## Antes de instalar un paquete nuevo (checklist)
 
