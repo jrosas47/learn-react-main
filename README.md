@@ -2,8 +2,9 @@
 
 [![CI](https://github.com/jrosas47/learn-react-main/actions/workflows/ci.yml/badge.svg)](https://github.com/jrosas47/learn-react-main/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/jrosas47/learn-react-main/actions/workflows/codeql.yml/badge.svg)](https://github.com/jrosas47/learn-react-main/actions/workflows/codeql.yml)
+[![codecov](https://codecov.io/gh/jrosas47/learn-react-main/branch/main/graph/badge.svg)](https://codecov.io/gh/jrosas47/learn-react-main)
 
-> Los badges muestran el estado del **CI** (lint + formato + tests + build) y del análisis de seguridad **CodeQL**. Detalles en la sección [**Integración Continua (CI) y calidad de código**](#integración-continua-ci-y-calidad-de-código) al final de este archivo.
+> Los badges muestran el estado del **CI** (lint + formato + tests + build), del análisis de seguridad **CodeQL** y de la **cobertura de tests (Codecov)**. Detalles en la sección [**Integración Continua (CI) y calidad de código**](#integración-continua-ci-y-calidad-de-código) al final de este archivo.
 
 Here, you can find the starter files for all the challenges in the course. To get started, download the entire repo and then navigate to the folder you need - the folders are structured just like the course. 
 
@@ -71,6 +72,23 @@ Esta sección documenta el pipeline de **CI (GitHub Actions)** y el tooling de c
 
 > ℹ️ Este repo **no tiene `package.json` raíz**: cada proyecto es un Vite independiente. Por eso el tooling y los comandos se aplican **dentro de la carpeta de cada proyecto**, y las rutas con espacios o `#` deben ir **entre comillas**.
 
+## Resumen de lo implementado
+
+Todo lo configurado en los proyectos activos (`07. Calculator/` y `react-welcome-home/`):
+
+| Área | Qué se implementó | Dónde |
+|------|-------------------|-------|
+| **Calidad de código** | ESLint 9 (flat config: React Hooks + React Refresh) y Prettier (sin `;`, comillas simples, ancho 100). | `eslint.config.mjs`, `.prettierrc.json`, `.prettierignore` |
+| **Tests + cobertura** | Vitest (`jsdom` + Testing Library) con reporte de cobertura v8 (`text`/`html`/`lcov`). | `vitest.config.*`, `*.test.js[x]`, `test/setup.js` |
+| **CI (GitHub Actions)** | Pipeline en matriz sobre los 2 proyectos: install → audit → lint → formato → type-check condicional → tests/cobertura → artefacto → **Codecov** → build. | `.github/workflows/ci.yml` |
+| **Cobertura publicada** | Cobertura subida a **Codecov** con un *flag* por proyecto (badge + *diff* en PRs). | `ci.yml` + secret `CODECOV_TOKEN` |
+| **Seguridad — CVEs** | `npm audit` que **bloquea** en CI ante *high/critical* en producción; **CodeQL** (análisis estático); **Dependabot** (*version* + *security updates*). | `ci.yml`, `codeql.yml`, `dependabot.yml` |
+| **Seguridad — cadena de suministro** | `.npmrc` con `ignore-scripts=true` (bloquea scripts de instalación de dependencias). | `<proyecto>/.npmrc` |
+| **Automatización de PRs** | Auto-merge de los PRs *patch* de Dependabot, solo con el CI en verde. | `dependabot-auto-merge.yml` |
+| **Documentación** | Configuración, comandos, paso a paso y operación (este README). | `README.md`, `CLAUDE.md` |
+
+> Cada fila tiene su sección detallada más abajo. Los archivos de configuración se **duplican por proyecto** porque son Vite independientes.
+
 ## ¿Qué valida el CI?
 
 En **cada `push`** y **cada `pull_request`**, GitHub Actions ejecuta —por cada proyecto activo y en paralelo— estos pasos:
@@ -84,7 +102,8 @@ En **cada `push`** y **cada `pull_request`**, GitHub Actions ejecuta —por cada
 | 5. Type-check | `tsc --noEmit` *(condicional)* | Solo se ejecuta **si existe `tsconfig.json`**. Hoy se omite porque ambos proyectos son JS. |
 | 6. Tests + cobertura | `npm run coverage --if-present` | Ejecuta **Vitest** (`vitest run --coverage`) y genera el reporte de cobertura. |
 | 7. Artefacto de cobertura | `actions/upload-artifact` | Sube la carpeta `coverage/` como artefacto descargable (`coverage-calculator`, `coverage-welcome-home`). |
-| 8. Build | `npm run build` | Que el proyecto compile en producción con Vite. |
+| 8. Cobertura a Codecov | `codecov/codecov-action@v5` | Publica `coverage/lcov.info` en Codecov con un *flag* por proyecto (`calculator` / `welcome-home`). No bloquea el CI si la subida falla. |
+| 9. Build | `npm run build` | Que el proyecto compile en producción con Vite. |
 
 Todo está definido en **`.github/workflows/ci.yml`**. La matriz usa entradas `{ project, slug }`: `project` es la carpeta y `slug` nombra el artefacto de cobertura.
 
@@ -103,7 +122,7 @@ El repositorio combina varias capas, todas automatizadas en GitHub Actions:
 |-------------|---------|----------|--------------|
 | **npm audit** | `.github/workflows/ci.yml` | Audita dependencias; **bloquea** ante vulnerabilidades *high/critical* en producción (`react`/`react-dom`) y reporta el resto sin bloquear. | En cada push y PR, por proyecto. |
 | **CodeQL** | `.github/workflows/codeql.yml` | Análisis estático de seguridad de GitHub sobre el código JS/JSX; los hallazgos aparecen en **Security → Code scanning**. | Push/PR a `main` + semanal (lunes 04:23 UTC). |
-| **Dependabot** | `.github/dependabot.yml` | Abre PRs automáticos con actualizaciones de dependencias (npm de los 2 proyectos activos + las GitHub Actions); agrupa *minor*/*patch* para reducir ruido. | Semanal. |
+| **Dependabot** | `.github/dependabot.yml` | Abre PRs automáticos con actualizaciones de dependencias (npm de los 2 proyectos activos + las GitHub Actions). **Agrupado para reducir ruido:** 1 PR para todas las Actions y, por proyecto npm, 1 PR de *producción* (`react`/`react-dom`) y 1 de *desarrollo* (tooling) — incluyendo *major*. | Semanal. |
 | **Auto-merge** | `.github/workflows/dependabot-auto-merge.yml` | Activa el auto-merge de los PRs de Dependabot de tipo **patch**; el merge solo ocurre cuando el CI pasa en verde. | En cada PR de Dependabot. |
 | **`.npmrc` (`ignore-scripts`)** | `<proyecto>/.npmrc` | `ignore-scripts=true`: npm **no ejecuta** los scripts de ciclo de vida (`pre`/`post`/`install`) de las dependencias al instalar. Defensa contra malware que se ejecuta durante `npm install`. | En cada `npm ci`/`npm install` (local y CI). |
 
@@ -258,6 +277,27 @@ git push
 ```
 - **Qué hace:** versiona los archivos de configuración, los `package.json`/`package-lock.json` y el código reformateado. Al hacer push se dispara el CI.
 
+### 7. Seguridad de dependencias (añadido después del tooling base)
+
+```bash
+# Por proyecto activo:
+printf 'ignore-scripts=true\n' > .npmrc   # bloquea scripts de instalación de dependencias
+npm ci && npm run build && npm test       # verificar que sigue todo en verde
+```
+- **Qué hace:** añade el `.npmrc` (defensa de cadena de suministro) y suma al CI el paso de `npm audit`. Se crearon además `.github/dependabot.yml` (actualizaciones), `.github/workflows/codeql.yml` (análisis estático) y `.github/workflows/dependabot-auto-merge.yml` (auto-merge de *patch*).
+- **Archivos afectados:** `<proyecto>/.npmrc`, `.github/dependabot.yml`, `.github/workflows/codeql.yml`, `.github/workflows/dependabot-auto-merge.yml`, `.github/workflows/ci.yml`.
+- **Detalle completo:** sección [**Seguridad de dependencias (cadena de suministro)**](#seguridad-de-dependencias-cadena-de-suministro).
+
+### 8. Cobertura en Codecov
+
+```bash
+# Alta en codecov.io + guardar el token como secret CODECOV_TOKEN en GitHub.
+# Luego el CI sube coverage/lcov.info automáticamente; nada que correr en local.
+```
+- **Qué hace:** publica la cobertura en Codecov (badge + *diff* en PRs) mediante el paso `codecov/codecov-action@v5` del `ci.yml`, con un *flag* por proyecto.
+- **Archivos afectados:** `.github/workflows/ci.yml`, `README.md` (badge). **Configuración manual:** secret `CODECOV_TOKEN`.
+- **Detalle completo:** subsección [**Codecov**](#codecov).
+
 ## Tests
 
 Las pruebas usan **[Vitest](https://vitest.dev/)** (+ **Testing Library** para componentes). Se ejecutan con `npm test` dentro de cada proyecto y forman parte del CI.
@@ -282,6 +322,17 @@ Para añadir un test: crea un archivo `*.test.js` / `*.test.jsx` junto al códig
 - **`coverage/lcov.info`:** formato estándar para integrarlo con herramientas externas (Codecov, SonarQube, etc.).
 
 En el CI, cada proyecto **sube su carpeta `coverage/` como artefacto** descargable desde la página de la ejecución en *Actions* (`coverage-calculator` y `coverage-welcome-home`). No hay umbral mínimo configurado: la cobertura es informativa, no bloquea el build.
+
+### Codecov
+
+Además del artefacto, el CI **publica la cobertura en [Codecov](https://codecov.io/)** (paso `codecov/codecov-action@v5`), que añade badge, comentario en cada PR, *diff* de cobertura e histórico. Como el repo es un monorepo, cada proyecto se sube con su propio **flag** (`calculator` / `welcome-home`) para que Codecov no mezcle las dos coberturas.
+
+Requisitos (configuración **única**):
+
+1. Dar de alta el repo en [codecov.io](https://codecov.io/) con tu cuenta de GitHub y copiar el *Repository Upload Token*.
+2. Guardarlo en GitHub → *Settings → Secrets and variables → Actions* como secret **`CODECOV_TOKEN`**.
+
+El paso usa `fail_ci_if_error: false`: si la subida a Codecov falla (p. ej. token ausente en un fork), el CI **no** se rompe.
 
 ## Comandos de uso diario
 
@@ -317,7 +368,7 @@ Instalar un paquete de npm puede ejecutar **código de terceros en tu máquina y
 ## Capas configuradas en este repo
 
 1. **`npm audit` en el CI** — `npm audit --omit=dev --audit-level=high` **bloquea** el build ante vulnerabilidades *high/critical* en dependencias de producción; la auditoría completa se reporta sin bloquear.
-2. **Dependabot** (`.github/dependabot.yml`) — abre PRs semanales con actualizaciones y agrupa *minor*/*patch*. Solo abre PRs: **no instala nada en tu máquina** (tu `node_modules` solo cambia cuando tú haces `git pull` + `npm install`).
+2. **Dependabot** (`.github/dependabot.yml`) — abre PRs semanales con actualizaciones, **agrupados** (1 PR para las Actions; por proyecto npm, 1 de *producción* y 1 de *desarrollo*, incluyendo *major*) para reducir el ruido. Solo abre PRs: **no instala nada en tu máquina** (tu `node_modules` solo cambia cuando tú haces `git pull` + `npm install`).
 3. **Auto-merge conservador** (`.github/workflows/dependabot-auto-merge.yml`) — fusiona automáticamente **solo** los PRs de tipo *patch* y **solo si el CI pasa en verde**; *minor*/*major* requieren tu aprobación.
 4. **CodeQL** (`.github/workflows/codeql.yml`) — análisis estático de seguridad de tu propio código.
 5. **`.npmrc` con `ignore-scripts=true`** (en cada proyecto activo) — npm **no ejecuta** los scripts `preinstall`/`install`/`postinstall` de las dependencias. Es la defensa directa contra el malware que se ejecuta durante `npm install`.
@@ -348,6 +399,26 @@ El `.github/dependabot.yml` configura **version updates** (mantener al día). La
 - **Dependabot security updates**
 
 > 💡 Recomendado además: **Secret scanning** y **Push protection**, para no subir credenciales por accidente.
+
+## Dependabot: *version updates* vs. *security updates*
+
+Dependabot abre PRs por **dos vías independientes**; conviene distinguirlas para no asustarse cuando aparecen PRs "solos":
+
+| | *Version updates* | *Security updates* |
+|---|---|---|
+| **Qué las dispara** | El archivo `.github/dependabot.yml` (leído desde la rama por defecto). | Las **Dependabot alerts** (*Settings → Code security*), aunque **no** exista `dependabot.yml`. |
+| **Cuándo** | En el `interval` programado (semanal). | En cuanto se publica una CVE que te afecta. |
+| **Qué actualizan** | Solo dependencias **directas** de los proyectos configurados. | Cualquier dependencia vulnerable, **incluidas las indirectas/transitivas**. |
+| **Cómo reconocerlas** | Commit `build(deps…)` sobre una dependencia directa. | Commit con `dependency-type: indirect` o que cita un *advisory*; ramas `dependabot/…` que aparecen sin haber tocado el `.yml`. |
+
+> 🔎 Si ves ramas `origin/dependabot/…` y PRs abiertos **sin** haber fusionado aún el `dependabot.yml` a `main`, son **security updates** (las disparan las alertas del repo, no el `.yml`).
+
+### Cómo manejar los PRs de Dependabot
+
+1. **Deja correr el CI** del PR (lint + tests + build + audit). Si está en rojo, no lo fusiones.
+2. **Patches y _minors_ de bajo riesgo** (p. ej. `postcss`, `picomatch`) → seguros de fusionar tras el CI verde.
+3. ⚠️ **PRs agrupados con saltos de _major_** (p. ej. `vite 5 → 8`, `@vitejs/plugin-react 4 → 6`) **pueden romper el build**. Pruébalos en local (`npm ci && npm run build && npm test`) antes de fusionar, o ciérralos si no quieres saltar de *major* ahora.
+4. **Auto-merge:** solo los *patch* se fusionan solos, y únicamente con el CI en verde y tras configurar *branch protection* (ver [arriba](#activar-el-auto-merge-y-proteger-main)). Nota: como el agrupado incluye *major*, casi ningún PR será un *patch* suelto, así que en la práctica el auto-merge rara vez se activa y los PRs agrupados se fusionan a mano.
 
 ## Antes de instalar un paquete nuevo (checklist)
 
