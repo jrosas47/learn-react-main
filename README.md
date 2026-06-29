@@ -137,6 +137,19 @@ El repositorio combina varias capas, todas automatizadas en GitHub Actions:
 >
 > ⚙️ El auto-merge requiere configuración **única** en *Settings* (permitir auto-merge, squash y *branch protection*). Ver [**Activar el auto-merge y proteger `main`**](#activar-el-auto-merge-y-proteger-main) abajo.
 
+### CodeQL: una sola configuración (este repo usa *advanced*)
+
+CodeQL tiene **dos modos que no pueden coexistir**:
+
+- **Default setup** — lo gestiona GitHub desde *Settings*, sin workflow.
+- **Advanced setup** — el workflow `codeql.yml` (es el que usa este repo: permite `queries: security-and-quality`, *schedule* semanal y control total).
+
+Si el **Default setup está activo a la vez** que el workflow avanzado, GitHub **rechaza** el SARIF del workflow con el error:
+
+> *"Code Scanning could not process the submitted SARIF file"* — en el log suele detallar *"advanced configurations cannot be processed when the default setup is enabled"*.
+
+**Solución (una vez):** *Settings → Code security → Code scanning → CodeQL analysis →* **Switch to advanced** (desactiva el Default). El asistente ofrecerá crear un `codeql.yml`: **no lo commitees** — el del repo ya existe y lo sobrescribirías. Después **re-ejecuta** el run de CodeQL y el SARIF se acepta.
+
 ### Comparativa: qué hace cada herramienta y qué se solapa
 
 Varias capas **se solapan en parte**. Esta tabla aclara la utilidad propia de cada una y qué añade respecto a las demás:
@@ -160,19 +173,37 @@ Varias capas **se solapan en parte**. Esta tabla aclara la utilidad propia de ca
 
 ### Activar el auto-merge y proteger `main`
 
+> **¿Qué es y para qué sirve la *branch protection*?** Son reglas sobre `main` que impiden que entre código sin pasar por el filtro: exigen un **PR** (nada de `push` directo a `main`), que los **checks del CI estén en verde** antes de fusionar y, opcionalmente, **revisión**. Sin ella, GitHub te deja mergear aunque el CI esté en rojo; **con** ella, el CI se vuelve una **puerta real** y el auto-merge de Dependabot solo fusiona lo que pasa los checks. También bloquea el *force-push* y el borrado de la rama.
+
 El auto-merge necesita configuración en *Settings* del repositorio (una sola vez). Puedes hacerlo desde la **UI de GitHub** o con la **CLI (`gh`)**.
 
-#### Opción A — Desde la UI de GitHub
+#### Opción A — Desde la UI de GitHub (paso a paso)
 
-1. **Permitir auto-merge y squash:** *Settings → General → Pull Requests* → marca **Allow auto-merge** y **Allow squash merging**.
-2. **Proteger la rama `main`:** *Settings → Branches → Add branch protection rule* (o *Add ruleset*):
-   - **Branch name pattern:** `main`.
-   - Marca **Require status checks to pass before merging**.
-   - En el buscador de checks añade **`CI · 07. Calculator`** y **`CI · react-welcome-home`** *(opcional: `Analyze (javascript)` de CodeQL)*.
-   - **No** marques *Require approvals*: si exiges revisión, los PRs de Dependabot no se auto-fusionarán solos.
-   - **Create / Save**.
+**Paso 1 · Habilitar auto-merge y squash**
 
-> 💡 Si los checks no aparecen en el buscador, haz un push o abre un PR para que el CI corra **al menos una vez**; después GitHub los listará.
+1. Repo → **Settings** → **General**.
+2. Baja a la sección **Pull Requests**.
+3. Marca **Allow auto-merge** y **Allow squash merging** (se guarda solo).
+
+**Paso 2 · Crear la regla de protección de `main`**
+
+1. Repo → **Settings** → **Branches**.
+2. En **Branch protection rules** → **Add branch protection rule**.
+3. **Branch name pattern:** escribe `main`.
+4. Marca **Require a pull request before merging** (impide el `push` directo a `main`).
+   - ⚠️ Deja **Require approvals** en **0** / sin marcar: si exiges aprobación, los PRs de **Dependabot no se auto-fusionarán** solos. (Si prefieres revisión humana, márcalo y asume merge manual.)
+5. Marca **Require status checks to pass before merging**.
+   - *(Opcional, más estricto)* marca también **Require branches to be up to date before merging**.
+6. En el buscador de checks, añade los que quieras **exigir**:
+   - **`CI · 07. Calculator`** ✅ (obligatorio)
+   - **`CI · react-welcome-home`** ✅ (obligatorio)
+   - *(opcionales)* `Analyze (javascript)` (CodeQL), `codecov/project`, `codecov/patch`, `SonarQube Code Analysis`.
+7. *(Opcional)* Marca **Do not allow bypassing the above settings** para que la regla aplique también a administradores.
+8. Pulsa **Create** (o **Save changes**).
+
+> 💡 Si un check no aparece en el buscador, es que aún no ha corrido: haz un push o abre un PR para que se ejecute **al menos una vez** y vuelve a buscarlo.
+>
+> 🔢 **Orden recomendado:** primero mergea el PR `ci/github-actions → main` (para que `main` tenga el CI) y luego crea la regla. Si la creas antes, el propio PR deberá cumplir los checks para poder fusionarse.
 
 #### Opción B — Con la CLI de GitHub (`gh`)
 
@@ -221,6 +252,7 @@ Análisis unificado de **calidad + seguridad + cobertura** con una *Quality Gate
 3. **Token:** genera uno en *My Account → Security* y guárdalo en GitHub como secret **`SONAR_TOKEN`** (un solo token sirve para ambos proyectos).
 4. **Config por proyecto:** cada carpeta tiene su `sonar-project.properties`. Los `projectKey`/`organization` **deben coincidir exactamente** con los de sonarcloud.io.
 5. **CI:** el paso `SonarSource/sonarqube-scan-action@v5` corre dentro del job de matriz con `projectBaseDir: ${{ matrix.project }}`, y el `Checkout` usa `fetch-depth: 0` (Sonar necesita el historial para detectar "código nuevo" y decorar PRs).
+6. **Renombra la rama principal a `main`:** al crear el proyecto, Sonar nombra la rama principal `master` por defecto y **no se sincroniza** con la de GitHub. En cada proyecto: *Administration → Branches and Pull Requests →* menú **⋯ → Rename →** `main`. Hazlo **antes** de analizar `main` (si ya hubiera una rama `main` suelta, bórrala primero y luego renombra `master`). Importa porque la *Quality Gate* sobre "código nuevo" se calcula comparando contra la rama principal.
 
 ```properties
 # <proyecto>/sonar-project.properties
@@ -243,6 +275,25 @@ sonar.javascript.lcov.reportPaths=coverage/lcov.info
 | **Badge** | En el proyecto Sonar → *Information* obtienes el markdown del badge de Quality Gate para el README. |
 
 > ⚠️ Si los `projectKey`/`organization` del `.properties` no coinciden con sonarcloud.io, el paso del CI **falla**. Verifícalos en *Proyecto → Information*.
+
+### Cuándo aparece la cobertura
+
+La cobertura se sube **en el mismo run** (el paso de cobertura corre antes que el de Sonar, así que el `lcov.info` viaja con el análisis). Dónde la ves depende de la rama:
+
+| Vista en Sonar | ¿Cobertura? |
+|---|---|
+| Rama analizada (p. ej. `ci/github-actions`) | **Sí, inmediata** — selecciónala en el desplegable de ramas del proyecto. |
+| Vista principal (`main`) | **Tras mergear el PR** y que el CI corra en `main` (es el % que muestra el badge). |
+
+> Si abres el proyecto y lo ves "vacío", probablemente estás en la rama principal aún sin analizar: cambia el desplegable a la rama de *feature*.
+
+### Badge de Quality Gate (opcional)
+
+En el proyecto Sonar → *Information* obtienes el markdown del badge. Como hay **dos** proyectos, tendrías dos badges (uno por proyecto):
+
+```markdown
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=jrosas47_learn-react-calculator&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=jrosas47_learn-react-calculator)
+```
 
 ## Archivos que componen la configuración
 
