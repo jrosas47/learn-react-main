@@ -2,8 +2,9 @@
 
 [![CI](https://github.com/jrosas47/learn-react-main/actions/workflows/ci.yml/badge.svg)](https://github.com/jrosas47/learn-react-main/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/jrosas47/learn-react-main/actions/workflows/codeql.yml/badge.svg)](https://github.com/jrosas47/learn-react-main/actions/workflows/codeql.yml)
+[![codecov](https://codecov.io/gh/jrosas47/learn-react-main/branch/main/graph/badge.svg)](https://codecov.io/gh/jrosas47/learn-react-main)
 
-> Los badges muestran el estado del **CI** (lint + formato + tests + build) y del análisis de seguridad **CodeQL**. Detalles en la sección [**Integración Continua (CI) y calidad de código**](#integración-continua-ci-y-calidad-de-código) al final de este archivo.
+> Los badges muestran el estado del **CI** (lint + formato + tests + build), del análisis de seguridad **CodeQL** y de la **cobertura de tests (Codecov)**. Detalles en la sección [**Integración Continua (CI) y calidad de código**](#integración-continua-ci-y-calidad-de-código) al final de este archivo.
 
 Here, you can find the starter files for all the challenges in the course. To get started, download the entire repo and then navigate to the folder you need - the folders are structured just like the course. 
 
@@ -84,7 +85,8 @@ En **cada `push`** y **cada `pull_request`**, GitHub Actions ejecuta —por cada
 | 5. Type-check | `tsc --noEmit` *(condicional)* | Solo se ejecuta **si existe `tsconfig.json`**. Hoy se omite porque ambos proyectos son JS. |
 | 6. Tests + cobertura | `npm run coverage --if-present` | Ejecuta **Vitest** (`vitest run --coverage`) y genera el reporte de cobertura. |
 | 7. Artefacto de cobertura | `actions/upload-artifact` | Sube la carpeta `coverage/` como artefacto descargable (`coverage-calculator`, `coverage-welcome-home`). |
-| 8. Build | `npm run build` | Que el proyecto compile en producción con Vite. |
+| 8. Cobertura a Codecov | `codecov/codecov-action@v5` | Publica `coverage/lcov.info` en Codecov con un *flag* por proyecto (`calculator` / `welcome-home`). No bloquea el CI si la subida falla. |
+| 9. Build | `npm run build` | Que el proyecto compile en producción con Vite. |
 
 Todo está definido en **`.github/workflows/ci.yml`**. La matriz usa entradas `{ project, slug }`: `project` es la carpeta y `slug` nombra el artefacto de cobertura.
 
@@ -282,6 +284,17 @@ Para añadir un test: crea un archivo `*.test.js` / `*.test.jsx` junto al códig
 - **`coverage/lcov.info`:** formato estándar para integrarlo con herramientas externas (Codecov, SonarQube, etc.).
 
 En el CI, cada proyecto **sube su carpeta `coverage/` como artefacto** descargable desde la página de la ejecución en *Actions* (`coverage-calculator` y `coverage-welcome-home`). No hay umbral mínimo configurado: la cobertura es informativa, no bloquea el build.
+
+### Codecov
+
+Además del artefacto, el CI **publica la cobertura en [Codecov](https://codecov.io/)** (paso `codecov/codecov-action@v5`), que añade badge, comentario en cada PR, *diff* de cobertura e histórico. Como el repo es un monorepo, cada proyecto se sube con su propio **flag** (`calculator` / `welcome-home`) para que Codecov no mezcle las dos coberturas.
+
+Requisitos (configuración **única**):
+
+1. Dar de alta el repo en [codecov.io](https://codecov.io/) con tu cuenta de GitHub y copiar el *Repository Upload Token*.
+2. Guardarlo en GitHub → *Settings → Secrets and variables → Actions* como secret **`CODECOV_TOKEN`**.
+
+El paso usa `fail_ci_if_error: false`: si la subida a Codecov falla (p. ej. token ausente en un fork), el CI **no** se rompe.
 
 ## Comandos de uso diario
 

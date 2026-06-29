@@ -85,6 +85,15 @@ jobs:
           path: ${{ matrix.project }}/coverage
           if-no-files-found: ignore
 
+      - name: Subir cobertura a Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ${{ matrix.project }}/coverage/lcov.info
+          flags: ${{ matrix.slug }} # separa la cobertura de cada proyecto (calculator / welcome-home)
+          name: ${{ matrix.slug }}
+          fail_ci_if_error: false # una subida fallida no rompe el CI
+
       - name: Build
         working-directory: ${{ matrix.project }}
         run: npm run build
