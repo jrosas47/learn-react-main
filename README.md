@@ -204,7 +204,32 @@ En *Settings → General → Pull Requests* hay cuatro casillas. Las tres primer
 
 > No confundir con *Require branches to be up to date before merging* (de la *branch protection*): esa **obliga** a que la rama esté al día antes de poder fusionar; *Always suggest…* solo **sugiere** el botón, no obliga.
 
-#### Opción A — Desde la UI de GitHub (paso a paso)
+#### Classic vs. Ruleset (cuál usar)
+
+GitHub ofrece **dos sistemas** para proteger ramas. **Aquí seguimos el _classic_** (más simple y suficiente para proteger `main`); el *ruleset* es la alternativa moderna y más potente que GitHub recomienda a futuro. Ambos logran lo mismo: exigir PR + checks del CI en verde.
+
+| | **Classic branch protection** | **Branch ruleset** |
+|---|---|---|
+| Estado | Original (en mantenimiento). | Nuevo, **recomendado** por GitHub. |
+| Composición | 1 regla por patrón; no se combinan. | Varias reglas en **capas** con prioridad. |
+| Modos | Solo activo. | **Active / Evaluate (prueba) / Disabled**. |
+| Extras | Lo básico. | *Bypass lists*, reglas de commits, **export/import JSON**. |
+| Targeting | Patrón de rama. | *Default branch*, patrones múltiples, ramas/tags. |
+
+**Equivalencia de ajustes** (lo que marcas en *classic* → su equivalente en *ruleset*):
+
+| Classic | Ruleset |
+|---|---|
+| *Branch name pattern* = `main` | **Target branches** → *Include default branch* (o patrón `main`) |
+| *Require a pull request before merging* | Regla **Require a pull request before merging** |
+| *Require status checks to pass* + checks | Regla **Require status checks to pass** + añadir los checks |
+| *Require branches to be up to date* | Casilla homónima dentro de esa regla |
+| *Do not allow bypassing* | **Bypass list** vacía + *Enforcement status: Active* |
+| (implícito) bloquear `push` directo / *force-push* | Reglas **Restrict deletions** + **Block force pushes** |
+
+> Para un *ruleset* equivalente: *Settings → Rules → Rulesets → New branch ruleset* → *Enforcement: Active*, *Target: Default branch*, y activa las reglas de la columna derecha. El modo *Evaluate* permite probarlo sin bloquear todavía.
+
+#### Opción A — Classic, paso a paso (lo que usamos)
 
 **Paso 1 · Habilitar auto-merge y squash**
 
@@ -212,21 +237,29 @@ En *Settings → General → Pull Requests* hay cuatro casillas. Las tres primer
 2. Baja a la sección **Pull Requests**.
 3. Marca **Allow auto-merge** y **Allow squash merging** (se guarda solo).
 
-**Paso 2 · Crear la regla de protección de `main`**
+**Paso 2 · Crear la regla *classic* de `main`**
 
 1. Repo → **Settings** → **Branches**.
-2. En **Branch protection rules** → **Add branch protection rule**.
+2. En **Branch protection rules** → **Add classic branch protection rule**.
 3. **Branch name pattern:** escribe `main`.
-4. Marca **Require a pull request before merging** (impide el `push` directo a `main`).
-   - ⚠️ Deja **Require approvals** en **0** / sin marcar: si exiges aprobación, los PRs de **Dependabot no se auto-fusionarán** solos. (Si prefieres revisión humana, márcalo y asume merge manual.)
-5. Marca **Require status checks to pass before merging**.
-   - *(Opcional, más estricto)* marca también **Require branches to be up to date before merging**.
-6. En el buscador de checks, añade los que quieras **exigir**:
-   - **`CI · 07. Calculator`** ✅ (obligatorio)
-   - **`CI · react-welcome-home`** ✅ (obligatorio)
-   - *(opcionales)* `Analyze (javascript)` (CodeQL), `codecov/project`, `codecov/patch`, `SonarQube Code Analysis`.
-7. *(Opcional)* Marca **Do not allow bypassing the above settings** para que la regla aplique también a administradores.
-8. Pulsa **Create** (o **Save changes**).
+4. ✅ **Require a pull request before merging** (impide el `push` directo a `main`).
+   - ⚠️ Deja **Required approvals** en **0**: si exiges aprobación, los PRs de **Dependabot no se auto-fusionarán** solos. (Si prefieres revisión humana, súbelo a 1 y asume merge manual.)
+   - *Dismiss stale approvals* / *Require review from Code Owners*: **sin marcar**.
+5. ✅ **Require status checks to pass before merging**.
+   - *(Opcional, más estricto)* ✅ **Require branches to be up to date before merging**.
+   - En el buscador añade los checks a **exigir**:
+     - **`CI · 07. Calculator`** y **`CI · react-welcome-home`** (obligatorios).
+     - *(opcionales)* `Analyze (javascript)` (CodeQL), `codecov/project`, `codecov/patch`, `SonarQube Code Analysis`.
+6. *(Opcional)* ✅ **Require conversation resolution before merging** (obliga a resolver los comentarios del PR antes de fusionar).
+7. ✅ **Do not allow bypassing the above settings** (aplica también a administradores) — recomendado.
+8. **Deja SIN marcar** (no los necesitas aquí): *Require signed commits*, *Require linear history*, *Require deployments to succeed*, *Lock branch*.
+9. Pulsa **Create** (o **Save changes**).
+
+**Paso 3 · Verificar que quedó activa**
+
+- Abre (o reutiliza) un PR hacia `main`: el botón **Merge** debe estar **bloqueado** hasta que los checks requeridos estén en verde.
+- Un `git push` directo a `main` debe ser **rechazado** por el remoto.
+- En *Settings → Branches* la regla aparece listada junto a `main`.
 
 > 💡 Si un check no aparece en el buscador, es que aún no ha corrido: haz un push o abre un PR para que se ejecute **al menos una vez** y vuelve a buscarlo.
 >
