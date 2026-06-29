@@ -42,7 +42,27 @@ npm run build                  # production build → dist/
 npm run preview                # serve the production build
 ```
 
-There are **no tests and no linters** configured in any project — do not attempt to run them.
+The **lesson projects** (`01`–`06`) have **no tests and no linters** — do not attempt to run them there. The **two active projects** (`07. Calculator/` and `react-welcome-home/`) *do* have full tooling — see [Active-Project Tooling](#active-project-tooling-eslint-prettier-vitest-ci) below.
+
+## Active-Project Tooling (ESLint, Prettier, Vitest, CI)
+
+Only `07. Calculator/` and `react-welcome-home/` have quality tooling. Each project is independent, so the config files (`eslint.config.mjs`, `.prettierrc.json`, `.prettierignore`, `vitest.config.*`, `test/setup.js`) are **duplicated per project** and every command runs **from inside the project folder**.
+
+```bash
+cd "07. Calculator"          # or cd "react-welcome-home"
+npm run lint                 # ESLint (flat config, ESLint 9; React Hooks + React Refresh)
+npm run format               # Prettier — rewrites files
+npm run format:check         # Prettier — verify only (what CI runs)
+npm test                     # Vitest run-once (vitest run)
+npm run test:watch           # Vitest watch mode
+npm run coverage             # Vitest + v8 coverage → coverage/
+```
+
+Run a **single test file**: `npm test -- path/to/file.test.jsx`. Filter by test name: `npm test -- -t "substring"`.
+
+- **Prettier style:** no semicolons, single quotes, width 100, 2-space indent.
+- **Tests** live next to the code they cover (`*.test.js` / `*.test.jsx`); Vitest auto-discovers them. Environment is `jsdom` with `@testing-library/jest-dom` matchers loaded from `test/setup.js`.
+- **CI** (`.github/workflows/ci.yml`) runs, per active project on every push/PR: `npm ci` → `npm audit` (blocks on high/critical in prod deps) → `lint` → `format:check` → conditional `tsc --noEmit` (skipped, both are JS) → `coverage` → `build`. CodeQL (`codeql.yml`) and Dependabot are also configured. The job names `CI · 07. Calculator` / `CI · react-welcome-home` are the branch-protection status-check contexts — keep them in sync with the matrix. Full walkthrough is in the README's "Integración Continua (CI)" section.
 
 ## Architecture Patterns
 
@@ -59,7 +79,8 @@ All projects share the same conventions:
 A custom calculator app (`name: react-calculator`). Structure:
 - `index.jsx` — mounts `App` into `index.html`.
 - `App.jsx` — root component.
-- `components/Calculator.jsx` — main logic: holds state and routes all button presses through a central `handleButton()` handler.
+- `components/Calculator.jsx` — holds state and routes all button presses through a central `handleButton()` handler. Delegates the arithmetic to `lib/calculate.js`.
+- `lib/calculate.js` — **pure** calculator logic (`calculate`, `trimResult`, `OPERATOR_MAP`), extracted from the component so it can be unit-tested without rendering. Put new arithmetic logic here, not in the component.
 - `components/Button.jsx` — reusable button.
 - `components/Display.jsx` — display output.
 - `index.css` — theming via CSS variables with dark/light mode.

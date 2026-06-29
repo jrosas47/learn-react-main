@@ -1,8 +1,9 @@
 ## Welcome to [Learn React](https://scrimba.com/learn-react-c0e)
 
 [![CI](https://github.com/jrosas47/learn-react-main/actions/workflows/ci.yml/badge.svg)](https://github.com/jrosas47/learn-react-main/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/jrosas47/learn-react-main/actions/workflows/codeql.yml/badge.svg)](https://github.com/jrosas47/learn-react-main/actions/workflows/codeql.yml)
 
-> El badge muestra el estado del CI (lint + formato + build) de los proyectos activos. Detalles en la sección [**Integración Continua (CI) y calidad de código**](#integración-continua-ci-y-calidad-de-código) al final de este archivo.
+> Los badges muestran el estado del **CI** (lint + formato + tests + build) y del análisis de seguridad **CodeQL**. Detalles en la sección [**Integración Continua (CI) y calidad de código**](#integración-continua-ci-y-calidad-de-código) al final de este archivo.
 
 Here, you can find the starter files for all the challenges in the course. To get started, download the entire repo and then navigate to the folder you need - the folders are structured just like the course. 
 
@@ -77,14 +78,94 @@ En **cada `push`** y **cada `pull_request`**, GitHub Actions ejecuta —por cada
 | Paso | Comando | Qué verifica |
 |------|---------|--------------|
 | 1. Instalación con caché | `npm ci` (respaldo `npm install`) | Instala dependencias reutilizando la caché de npm. |
-| 2. Lint | `npm run lint` | Reglas de ESLint (React Hooks + React Refresh). |
-| 3. Formato | `npm run format:check` | Que el código respete el estilo de Prettier. |
-| 4. Type-check | `tsc --noEmit` *(condicional)* | Solo se ejecuta **si existe `tsconfig.json`**. Hoy se omite porque ambos proyectos son JS. |
-| 5. Tests + cobertura | `npm run coverage --if-present` | Ejecuta **Vitest** (`vitest run --coverage`) y genera el reporte de cobertura. |
-| 6. Artefacto de cobertura | `actions/upload-artifact` | Sube la carpeta `coverage/` como artefacto descargable (`coverage-calculator`, `coverage-welcome-home`). |
-| 7. Build | `npm run build` | Que el proyecto compile en producción con Vite. |
+| 2. Auditoría de seguridad | `npm audit --omit=dev --audit-level=high` | **Bloquea** si hay vulnerabilidades *high/critical* en dependencias de producción; la auditoría completa se reporta sin bloquear. |
+| 3. Lint | `npm run lint` | Reglas de ESLint (React Hooks + React Refresh). |
+| 4. Formato | `npm run format:check` | Que el código respete el estilo de Prettier. |
+| 5. Type-check | `tsc --noEmit` *(condicional)* | Solo se ejecuta **si existe `tsconfig.json`**. Hoy se omite porque ambos proyectos son JS. |
+| 6. Tests + cobertura | `npm run coverage --if-present` | Ejecuta **Vitest** (`vitest run --coverage`) y genera el reporte de cobertura. |
+| 7. Artefacto de cobertura | `actions/upload-artifact` | Sube la carpeta `coverage/` como artefacto descargable (`coverage-calculator`, `coverage-welcome-home`). |
+| 8. Build | `npm run build` | Que el proyecto compile en producción con Vite. |
 
 Todo está definido en **`.github/workflows/ci.yml`**. La matriz usa entradas `{ project, slug }`: `project` es la carpeta y `slug` nombra el artefacto de cobertura.
+
+## Calidad de código y seguridad
+
+El repositorio combina varias capas, todas automatizadas en GitHub Actions:
+
+**Calidad de código**
+- **ESLint** (`npm run lint`) — análisis estático de errores y malas prácticas de React.
+- **Prettier** (`npm run format:check`) — estilo de código consistente.
+- **Vitest** (`npm run coverage`) — tests unitarios y de integración con cobertura.
+
+**Seguridad**
+
+| Herramienta | Archivo | Qué hace | Cuándo corre |
+|-------------|---------|----------|--------------|
+| **npm audit** | `.github/workflows/ci.yml` | Audita dependencias; **bloquea** ante vulnerabilidades *high/critical* en producción (`react`/`react-dom`) y reporta el resto sin bloquear. | En cada push y PR, por proyecto. |
+| **CodeQL** | `.github/workflows/codeql.yml` | Análisis estático de seguridad de GitHub sobre el código JS/JSX; los hallazgos aparecen en **Security → Code scanning**. | Push/PR a `main` + semanal (lunes 04:23 UTC). |
+| **Dependabot** | `.github/dependabot.yml` | Abre PRs automáticos con actualizaciones de dependencias (npm de los 2 proyectos activos + las GitHub Actions); agrupa *minor*/*patch* para reducir ruido. | Semanal. |
+| **Auto-merge** | `.github/workflows/dependabot-auto-merge.yml` | Activa el auto-merge de los PRs de Dependabot de tipo **patch**; el merge solo ocurre cuando el CI pasa en verde. | En cada PR de Dependabot. |
+| **`.npmrc` (`ignore-scripts`)** | `<proyecto>/.npmrc` | `ignore-scripts=true`: npm **no ejecuta** los scripts de ciclo de vida (`pre`/`post`/`install`) de las dependencias al instalar. Defensa contra malware que se ejecuta durante `npm install`. | En cada `npm ci`/`npm install` (local y CI). |
+
+> 🔒 **Notas:**
+> - **CodeQL** es gratuito en repositorios públicos; en privados requiere *GitHub Advanced Security*. Sus resultados se ven en *Security → Code scanning alerts*.
+> - **Dependabot** empezará a abrir PRs automáticamente al fusionar su archivo. Ajusta la frecuencia (`interval`) o el tope (`open-pull-requests-limit`) en `.github/dependabot.yml`.
+> - Auditoría local: `npm audit` (completa) o `npm audit --omit=dev` (solo producción), dentro de la carpeta del proyecto.
+> - **`.npmrc` con `ignore-scripts=true`** en cada proyecto activo bloquea los scripts de instalación de las dependencias. Explicación, compatibilidad y comandos en [**Seguridad de dependencias (cadena de suministro)**](#seguridad-de-dependencias-cadena-de-suministro).
+>
+> ⚙️ El auto-merge requiere configuración **única** en *Settings* (permitir auto-merge, squash y *branch protection*). Ver [**Activar el auto-merge y proteger `main`**](#activar-el-auto-merge-y-proteger-main) abajo.
+
+### Activar el auto-merge y proteger `main`
+
+El auto-merge necesita configuración en *Settings* del repositorio (una sola vez). Puedes hacerlo desde la **UI de GitHub** o con la **CLI (`gh`)**.
+
+#### Opción A — Desde la UI de GitHub
+
+1. **Permitir auto-merge y squash:** *Settings → General → Pull Requests* → marca **Allow auto-merge** y **Allow squash merging**.
+2. **Proteger la rama `main`:** *Settings → Branches → Add branch protection rule* (o *Add ruleset*):
+   - **Branch name pattern:** `main`.
+   - Marca **Require status checks to pass before merging**.
+   - En el buscador de checks añade **`CI · 07. Calculator`** y **`CI · react-welcome-home`** *(opcional: `Analyze (javascript)` de CodeQL)*.
+   - **No** marques *Require approvals*: si exiges revisión, los PRs de Dependabot no se auto-fusionarán solos.
+   - **Create / Save**.
+
+> 💡 Si los checks no aparecen en el buscador, haz un push o abre un PR para que el CI corra **al menos una vez**; después GitHub los listará.
+
+#### Opción B — Con la CLI de GitHub (`gh`)
+
+```bash
+REPO=jrosas47/learn-react-main
+
+# 1. Permitir auto-merge y squash merge en el repositorio
+gh repo edit "$REPO" --enable-auto-merge --enable-squash-merge
+
+# 2. Proteger main: exigir los checks del CI antes de fusionar (sin revisión obligatoria)
+gh api --method PUT "repos/$REPO/branches/main/protection" --input - <<'JSON'
+{
+  "required_status_checks": {
+    "strict": false,
+    "checks": [
+      { "context": "CI · 07. Calculator" },
+      { "context": "CI · react-welcome-home" }
+    ]
+  },
+  "enforce_admins": false,
+  "required_pull_request_reviews": null,
+  "restrictions": null
+}
+JSON
+```
+
+> 🪟 En **PowerShell** el *here-doc* (`<<'JSON'`) no funciona. Guarda el JSON en un archivo y pásalo con `--input`:
+> ```powershell
+> $REPO = "jrosas47/learn-react-main"
+> gh repo edit $REPO --enable-auto-merge --enable-squash-merge
+> '{ "required_status_checks": { "strict": false, "checks": [ { "context": "CI · 07. Calculator" }, { "context": "CI · react-welcome-home" } ] }, "enforce_admins": false, "required_pull_request_reviews": null, "restrictions": null }' | Out-File -Encoding utf8 protection.json
+> gh api --method PUT "repos/$REPO/branches/main/protection" --input protection.json
+> Remove-Item protection.json
+> ```
+
+> Los nombres de los checks (`CI · 07. Calculator`, `CI · react-welcome-home`) deben coincidir exactamente con el campo `name:` del job en `.github/workflows/ci.yml`. Si cambias la matriz, actualiza estos contextos.
 
 ## Archivos que componen la configuración
 
@@ -94,6 +175,7 @@ Todo está definido en **`.github/workflows/ci.yml`**. La matriz usa entradas `{
 | `<proyecto>/eslint.config.mjs` | Configuración de ESLint | Flat config de ESLint 9 (estilo de la plantilla oficial de Vite). |
 | `<proyecto>/.prettierrc.json` | Configuración de Prettier | Estilo de formato: sin `;`, comillas simples, ancho 100, indentación 2. |
 | `<proyecto>/.prettierignore` | Configuración de Prettier | Excluye `dist`, `coverage`, `node_modules`, `package-lock.json` (y `src/data` en welcome-home). |
+| `<proyecto>/.npmrc` | Seguridad de instalación | `ignore-scripts=true`: npm no ejecuta scripts de ciclo de vida de las dependencias al instalar (defensa de cadena de suministro). |
 | `<proyecto>/package.json` | Scripts + dependencias | Scripts `lint` / `format` / `format:check` / `test` / `coverage` y `devDependencies` de ESLint, Prettier, Vitest y Testing Library. |
 | `<proyecto>/package-lock.json` | Instalación | Lockfile actualizado por `npm install`; lo usan la caché del CI y `npm ci`. |
 | `<proyecto>/vitest.config.*` | Configuración de tests | Configura Vitest: entorno `jsdom`, archivo de setup y opciones de cobertura. (`vitest.config.mjs` en Calculator, `vitest.config.mts` en welcome-home.) |
@@ -214,5 +296,76 @@ Ejecutar **dentro de la carpeta del proyecto** (`cd "07. Calculator"` o `cd "rea
 | `npm test` | Ejecuta los tests una vez con Vitest (`vitest run`). |
 | `npm run test:watch` | Ejecuta Vitest en modo interactivo (re-corre al guardar). |
 | `npm run coverage` | Ejecuta los tests y genera el reporte de cobertura → `coverage/`. |
+| `npm audit` | Audita las dependencias en busca de vulnerabilidades conocidas. |
+| `npm audit signatures` | Verifica las firmas/procedencia de los paquetes instalados contra el registro de npm. |
 | `npm run build` | Build de producción → `dist/`. |
 | `npm run preview` | Sirve el build de producción. |
+
+---
+
+# Seguridad de dependencias (cadena de suministro)
+
+Instalar un paquete de npm puede ejecutar **código de terceros en tu máquina y en el CI**. Esta sección resume las defensas configuradas y cómo operarlas. Aplica a los proyectos activos `07. Calculator/` y `react-welcome-home/`.
+
+## Dos amenazas distintas
+
+| Amenaza | Qué es | Defensa principal |
+|---------|--------|-------------------|
+| **Vulnerabilidades conocidas (CVE)** | Un paquete legítimo con un fallo de seguridad ya reportado. | `npm audit` (bloquea en CI) + Dependabot + CodeQL. |
+| **Malware / cadena de suministro** | Un paquete malicioso: *typosquatting*, una versión secuestrada o un `postinstall` que roba credenciales. `npm audit` **no** lo detecta. | `.npmrc` con `ignore-scripts`, `package-lock.json` + `npm ci`, verificación manual antes de instalar. |
+
+## Capas configuradas en este repo
+
+1. **`npm audit` en el CI** — `npm audit --omit=dev --audit-level=high` **bloquea** el build ante vulnerabilidades *high/critical* en dependencias de producción; la auditoría completa se reporta sin bloquear.
+2. **Dependabot** (`.github/dependabot.yml`) — abre PRs semanales con actualizaciones y agrupa *minor*/*patch*. Solo abre PRs: **no instala nada en tu máquina** (tu `node_modules` solo cambia cuando tú haces `git pull` + `npm install`).
+3. **Auto-merge conservador** (`.github/workflows/dependabot-auto-merge.yml`) — fusiona automáticamente **solo** los PRs de tipo *patch* y **solo si el CI pasa en verde**; *minor*/*major* requieren tu aprobación.
+4. **CodeQL** (`.github/workflows/codeql.yml`) — análisis estático de seguridad de tu propio código.
+5. **`.npmrc` con `ignore-scripts=true`** (en cada proyecto activo) — npm **no ejecuta** los scripts `preinstall`/`install`/`postinstall` de las dependencias. Es la defensa directa contra el malware que se ejecuta durante `npm install`.
+6. **`package-lock.json` + `npm ci`** — instalación reproducible y clavada al lockfile; falla si alguien lo manipuló.
+
+## `.npmrc` con `ignore-scripts` — configuración y compatibilidad
+
+Cada proyecto activo incluye un `.npmrc`:
+
+```ini
+# 07. Calculator/.npmrc  y  react-welcome-home/.npmrc
+ignore-scripts=true
+```
+
+- **Qué hace:** al correr `npm install` / `npm ci`, npm omite los scripts de ciclo de vida de **las dependencias**. Un paquete malicioso ya no puede ejecutar código solo por instalarlo.
+- **¿Rompe algo?** Es el *trade-off* habitual: algunos paquetes usan `postinstall` para preparar su binario. En estos dos proyectos la **única** dependencia con `postinstall` es **esbuild** (lo usan Vite y Vitest), y esbuild resuelve su binario desde su paquete de plataforma (`optionalDependencies`), así que **funciona sin el postinstall**.
+- **Verificado:** con `.npmrc` puesto, una instalación limpia (`npm ci`) seguida de `npm run build` y `npm test` pasa en verde en ambos proyectos (Calculator: 13 tests; welcome-home: 4 tests).
+
+> ⚠️ Si en el futuro agregas una dependencia que **sí** necesite su script de instalación, esa instalación puede fallar. Soluciones: ejecutar **una vez** `npm rebuild <paquete>` (corre los scripts de ese paquete a propósito) tras revisar que es de confianza, o instalarlo puntualmente con `npm install <paquete> --foreground-scripts`.
+
+## Activar las *security updates* de Dependabot (GitHub)
+
+El `.github/dependabot.yml` configura **version updates** (mantener al día). Las **security updates** (PRs en cuanto se publica una CVE, aunque no sea el día programado) se activan **aparte**, una sola vez, en la UI de GitHub:
+
+**Settings → Code security and analysis**, y activa:
+- **Dependency graph**
+- **Dependabot alerts**
+- **Dependabot security updates**
+
+> 💡 Recomendado además: **Secret scanning** y **Push protection**, para no subir credenciales por accidente.
+
+## Antes de instalar un paquete nuevo (checklist)
+
+1. **Nombre exacto** — copia/pega desde el repo oficial; cuidado con el *typosquatting* (`react-domm`, guiones de más, caracteres parecidos…).
+2. **Inspección rápida:** `npm view <paquete>` → último release, repositorio, mantenedores y descargas. Desconfía de un paquete "popular" con pocas descargas o publicado hace horas.
+3. **Deja madurar** las versiones recién publicadas; los secuestros suelen detectarse y retirarse en horas/días.
+4. **Tras instalar:** `npm audit` y, opcionalmente, `npm audit signatures` (verifica firmas/procedencia contra el registro).
+
+## Comandos de seguridad
+
+Ejecutar **dentro de la carpeta del proyecto** (`cd "07. Calculator"` o `cd "react-welcome-home"`):
+
+```bash
+npm audit                                 # auditoría completa (todas las dependencias)
+npm audit --omit=dev                      # solo dependencias de producción
+npm audit --omit=dev --audit-level=high   # exactamente lo que bloquea el CI
+npm audit signatures                      # verifica firmas/procedencia de lo instalado
+npm ci                                    # instalación reproducible desde package-lock.json (respeta .npmrc)
+npm view <paquete>                        # inspeccionar un paquete antes de añadirlo
+npm rebuild <paquete>                     # ejecutar a propósito los scripts de un paquete de confianza
+```
