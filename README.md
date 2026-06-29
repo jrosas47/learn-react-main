@@ -177,6 +177,29 @@ Varias capas **se solapan en parte**. Esta tabla aclara la utilidad propia de ca
 
 El auto-merge necesita configuración en *Settings* del repositorio (una sola vez). Puedes hacerlo desde la **UI de GitHub** o con la **CLI (`gh`)**.
 
+#### Estrategias de merge (qué casillas marcar)
+
+En *Settings → General → Pull Requests* hay cuatro casillas. Las tres primeras eligen **cómo** se fusiona un PR; la cuarta habilita la auto-fusión:
+
+| Opción | Qué hace | Implicación en el historial |
+|---|---|---|
+| **Allow merge commits** | Fusiona creando un *merge commit*. | Conserva **todos** los commits del PR + un commit de merge (historia ramificada, con "burbujas"). |
+| **Allow squash merging** | Aplasta el PR en **un solo commit**. | Historia **lineal y limpia**: 1 PR = 1 commit en `main`. |
+| **Allow rebase merging** | Reaplica los commits del PR sobre `main`. | Historia **lineal**, pero conserva cada commit (sin merge commit). |
+| **Allow auto-merge** | Permite que un PR se fusione **solo** cuando sus checks requeridos pasan. | No afecta el historial; es el "interruptor" del auto-merge. |
+
+> ⚠️ **Imprescindibles en este repo:** **Allow squash merging** y **Allow auto-merge**. El workflow `dependabot-auto-merge.yml` ejecuta `gh pr merge --auto --squash`, así que sin esas dos el auto-merge de Dependabot falla.
+
+**Combinación recomendada según la estrategia de historial que prefieras:**
+
+| Estrategia | Marca | Desmarca | Para quién |
+|---|---|---|---|
+| **Lineal limpia** (recomendada) | Squash + Auto-merge | Merge commits, Rebase | 1 PR = 1 commit; lo más fácil de leer. Encaja con el auto-merge por *squash*. |
+| **Flexible** (lo que tienes ahora) | Las 4 | — | Eliges la estrategia en cada PR; cómodo, pero historial mixto. |
+| **Lineal conservando commits** | Rebase + Squash + Auto-merge | Merge commits | Lineal, pero puedes preservar los commits de un PR cuando interese. |
+
+> No hay opción "incorrecta": mientras **Squash** y **Auto-merge** sigan marcadas, todo funciona. El resto es preferencia de estilo del historial.
+
 #### Opción A — Desde la UI de GitHub (paso a paso)
 
 **Paso 1 · Habilitar auto-merge y squash**
