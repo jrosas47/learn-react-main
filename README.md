@@ -80,8 +80,9 @@ Todo lo configurado en los proyectos activos (`07. Calculator/` y `react-welcome
 |------|-------------------|-------|
 | **Calidad de código** | ESLint 9 (flat config: React Hooks + React Refresh) y Prettier (sin `;`, comillas simples, ancho 100). | `eslint.config.mjs`, `.prettierrc.json`, `.prettierignore` |
 | **Tests + cobertura** | Vitest (`jsdom` + Testing Library) con reporte de cobertura v8 (`text`/`html`/`lcov`). | `vitest.config.*`, `*.test.js[x]`, `test/setup.js` |
-| **CI (GitHub Actions)** | Pipeline en matriz sobre los 2 proyectos: install → audit → lint → formato → type-check condicional → tests/cobertura → artefacto → **Codecov** → build. | `.github/workflows/ci.yml` |
+| **CI (GitHub Actions)** | Pipeline en matriz sobre los 2 proyectos: install → audit → lint → formato → type-check condicional → tests/cobertura → artefacto → **Codecov** → **SonarQube** → build. | `.github/workflows/ci.yml` |
 | **Cobertura publicada** | Cobertura subida a **Codecov** con un *flag* por proyecto (badge + *diff* en PRs). | `ci.yml` + secret `CODECOV_TOKEN` |
+| **Calidad + seguridad unificadas** | **SonarQube Cloud** (1 proyecto Sonar por carpeta): bugs, *code smells*, *security hotspots*, duplicación, cobertura y *Quality Gate*. | `<proyecto>/sonar-project.properties` + secret `SONAR_TOKEN` |
 | **Seguridad — CVEs** | `npm audit` que **bloquea** en CI ante *high/critical* en producción; **CodeQL** (análisis estático); **Dependabot** (*version* + *security updates*). | `ci.yml`, `codeql.yml`, `dependabot.yml` |
 | **Seguridad — cadena de suministro** | `.npmrc` con `ignore-scripts=true` (bloquea scripts de instalación de dependencias). | `<proyecto>/.npmrc` |
 | **Automatización de PRs** | Auto-merge de los PRs *patch* de Dependabot, solo con el CI en verde. | `dependabot-auto-merge.yml` |
@@ -103,7 +104,8 @@ En **cada `push`** y **cada `pull_request`**, GitHub Actions ejecuta —por cada
 | 6. Tests + cobertura | `npm run coverage --if-present` | Ejecuta **Vitest** (`vitest run --coverage`) y genera el reporte de cobertura. |
 | 7. Artefacto de cobertura | `actions/upload-artifact` | Sube la carpeta `coverage/` como artefacto descargable (`coverage-calculator`, `coverage-welcome-home`). |
 | 8. Cobertura a Codecov | `codecov/codecov-action@v5` | Publica `coverage/lcov.info` en Codecov con un *flag* por proyecto (`calculator` / `welcome-home`). No bloquea el CI si la subida falla. |
-| 9. Build | `npm run build` | Que el proyecto compile en producción con Vite. |
+| 9. Análisis SonarQube | `SonarSource/sonarqube-scan-action@v5` | Analiza cada proyecto en SonarQube Cloud (calidad, seguridad, duplicación y cobertura) y evalúa la *Quality Gate*. |
+| 10. Build | `npm run build` | Que el proyecto compile en producción con Vite. |
 
 Todo está definido en **`.github/workflows/ci.yml`**. La matriz usa entradas `{ project, slug }`: `project` es la carpeta y `slug` nombra el artefacto de cobertura.
 
@@ -125,6 +127,7 @@ El repositorio combina varias capas, todas automatizadas en GitHub Actions:
 | **Dependabot** | `.github/dependabot.yml` | Abre PRs automáticos con actualizaciones de dependencias (npm de los 2 proyectos activos + las GitHub Actions). **Agrupado para reducir ruido:** 1 PR para todas las Actions y, por proyecto npm, 1 PR de *producción* (`react`/`react-dom`) y 1 de *desarrollo* (tooling) — incluyendo *major*. | Semanal. |
 | **Auto-merge** | `.github/workflows/dependabot-auto-merge.yml` | Activa el auto-merge de los PRs de Dependabot de tipo **patch**; el merge solo ocurre cuando el CI pasa en verde. | En cada PR de Dependabot. |
 | **`.npmrc` (`ignore-scripts`)** | `<proyecto>/.npmrc` | `ignore-scripts=true`: npm **no ejecuta** los scripts de ciclo de vida (`pre`/`post`/`install`) de las dependencias al instalar. Defensa contra malware que se ejecuta durante `npm install`. | En cada `npm ci`/`npm install` (local y CI). |
+| **SonarQube Cloud** | `<proyecto>/sonar-project.properties` | Calidad + seguridad unificadas: bugs, *code smells*, *security hotspots*, duplicación, cobertura y una **Quality Gate**. Un proyecto Sonar por carpeta. | En cada push y PR, por proyecto. |
 
 > 🔒 **Notas:**
 > - **CodeQL** es gratuito en repositorios públicos; en privados requiere *GitHub Advanced Security*. Sus resultados se ven en *Security → Code scanning alerts*.
@@ -133,6 +136,27 @@ El repositorio combina varias capas, todas automatizadas en GitHub Actions:
 > - **`.npmrc` con `ignore-scripts=true`** en cada proyecto activo bloquea los scripts de instalación de las dependencias. Explicación, compatibilidad y comandos en [**Seguridad de dependencias (cadena de suministro)**](#seguridad-de-dependencias-cadena-de-suministro).
 >
 > ⚙️ El auto-merge requiere configuración **única** en *Settings* (permitir auto-merge, squash y *branch protection*). Ver [**Activar el auto-merge y proteger `main`**](#activar-el-auto-merge-y-proteger-main) abajo.
+
+### Comparativa: qué hace cada herramienta y qué se solapa
+
+Varias capas **se solapan en parte**. Esta tabla aclara la utilidad propia de cada una y qué añade respecto a las demás:
+
+| Herramienta | Categoría | Utilidad propia | Se solapa con | Qué añade que las otras no |
+|---|---|---|---|---|
+| **ESLint** | Calidad (lint) | Errores y malas prácticas de JS/React por archivo. | SonarQube (*code smells*) | Reglas específicas de **React Hooks/Refresh** y *fix* inmediato en el editor. |
+| **Prettier** | Formato | Estilo de código uniforme. | — | Formateo **automático** (reescribe), no solo detección. |
+| **Vitest** | Tests | Ejecuta las pruebas y mide cobertura. | — | Es la **base**: sin tests no hay cobertura que reportar. |
+| **Codecov** | Cobertura | Visualiza la cobertura y su *diff* por PR. | SonarQube (cobertura) | Dashboard de cobertura dedicado y **diff coverage** muy pulido, por *flag*. |
+| **npm audit** | Seguridad de deps | Detecta CVEs conocidas en las deps y **bloquea** el CI. | Dependabot, SonarQube | Es una **puerta** en el CI (rompe el build ante *high/critical*). |
+| **Dependabot** | Mantenimiento de deps | Abre PRs que **actualizan** deps vulnerables/desactualizadas. | npm audit | No solo detecta: **propone el arreglo** (PR) y lo mantiene. |
+| **CodeQL** | Seguridad del código | Análisis profundo de *data-flow* en tu código. | SonarQube (*security*) | Motor de seguridad de GitHub; alertas en **Security → Code scanning**. |
+| **SonarQube Cloud** | Calidad + seguridad + cobertura **unificadas** | Reúne todo en un dashboard con una **Quality Gate**. | ESLint, CodeQL, Codecov | **Quality Gate** que aprueba/bloquea, ratings A–E de **fiabilidad/seguridad/mantenibilidad**, **duplicación** y **deuda técnica**. |
+
+**En resumen:**
+- **Seguridad:** `npm audit` (deps, *gate*) + **CodeQL** (tu código, profundo) + **SonarQube** (visión consolidada). Se complementan más de lo que se repiten.
+- **Calidad/estilo:** **ESLint** (reglas React, al instante) + **Prettier** (formato) + **SonarQube** (*smells*, duplicación, deuda).
+- **Cobertura:** **Codecov** (especializado, *diff* por PR) y **SonarQube** (la integra en su Quality Gate). Puedes quedarte con uno o tener ambos.
+- **Lo que SOLO aporta SonarQube:** la **Quality Gate** unificada, la **duplicación de código** y la **deuda técnica** con ratings.
 
 ### Activar el auto-merge y proteger `main`
 
@@ -186,6 +210,40 @@ JSON
 
 > Los nombres de los checks (`CI · 07. Calculator`, `CI · react-welcome-home`) deben coincidir exactamente con el campo `name:` del job en `.github/workflows/ci.yml`. Si cambias la matriz, actualiza estos contextos.
 
+## SonarQube Cloud
+
+Análisis unificado de **calidad + seguridad + cobertura** con una *Quality Gate*. Al ser un monorepo de proyectos independientes se usa **un proyecto Sonar por carpeta** (`calculator` y `welcome-home`), análogo a los *flags* de Codecov: el análisis corre **dentro** de cada proyecto y su cobertura (`coverage/lcov.info`) mapea correctamente.
+
+### Configuración (única)
+
+1. **Alta:** en [sonarcloud.io](https://sonarcloud.io) con GitHub, crea la **organización** (gratis en repos públicos) e importa el repo creando **dos proyectos** (uno por carpeta).
+2. **Desactiva *Automatic Analysis*** en cada proyecto (*Administration → Analysis Method* → *CI-based / GitHub Actions*). Es obligatorio: *Automatic Analysis* no lee la cobertura lcov y choca con el análisis del CI.
+3. **Token:** genera uno en *My Account → Security* y guárdalo en GitHub como secret **`SONAR_TOKEN`** (un solo token sirve para ambos proyectos).
+4. **Config por proyecto:** cada carpeta tiene su `sonar-project.properties`. Los `projectKey`/`organization` **deben coincidir exactamente** con los de sonarcloud.io.
+5. **CI:** el paso `SonarSource/sonarqube-scan-action@v5` corre dentro del job de matriz con `projectBaseDir: ${{ matrix.project }}`, y el `Checkout` usa `fetch-depth: 0` (Sonar necesita el historial para detectar "código nuevo" y decorar PRs).
+
+```properties
+# <proyecto>/sonar-project.properties
+sonar.organization=jrosas47
+sonar.projectKey=jrosas47_learn-react-<calculator|welcome-home>
+sonar.sources=.
+sonar.tests=.
+sonar.test.inclusions=**/*.test.js,**/*.test.jsx
+sonar.exclusions=node_modules/**,dist/**,coverage/**
+sonar.javascript.lcov.reportPaths=coverage/lcov.info
+```
+
+### Cómo validar
+
+| Dónde | Qué confirmas |
+|---|---|
+| **GitHub → Actions** | El paso *"Análisis SonarQube Cloud"* termina en verde con *"ANALYSIS SUCCESSFUL"*. |
+| **Dashboard** `sonarcloud.io` (cada proyecto) | **Quality Gate** (Passed/Failed), **Bugs**, **Vulnerabilities**, **Security Hotspots**, **Code Smells**, **Coverage %**, **Duplications** y ratings A–E. |
+| **En un PR** | Sonar comenta el análisis del *diff* y añade un **check** propio (puedes exigirlo en la *branch protection*). |
+| **Badge** | En el proyecto Sonar → *Information* obtienes el markdown del badge de Quality Gate para el README. |
+
+> ⚠️ Si los `projectKey`/`organization` del `.properties` no coinciden con sonarcloud.io, el paso del CI **falla**. Verifícalos en *Proyecto → Information*.
+
 ## Archivos que componen la configuración
 
 | Archivo | Acción asociada | Propósito |
@@ -195,6 +253,7 @@ JSON
 | `<proyecto>/.prettierrc.json` | Configuración de Prettier | Estilo de formato: sin `;`, comillas simples, ancho 100, indentación 2. |
 | `<proyecto>/.prettierignore` | Configuración de Prettier | Excluye `dist`, `coverage`, `node_modules`, `package-lock.json` (y `src/data` en welcome-home). |
 | `<proyecto>/.npmrc` | Seguridad de instalación | `ignore-scripts=true`: npm no ejecuta scripts de ciclo de vida de las dependencias al instalar (defensa de cadena de suministro). |
+| `<proyecto>/sonar-project.properties` | SonarQube Cloud | `projectKey`/`organization`, fuentes, exclusiones y ruta de cobertura lcov para el análisis de cada proyecto. |
 | `<proyecto>/package.json` | Scripts + dependencias | Scripts `lint` / `format` / `format:check` / `test` / `coverage` y `devDependencies` de ESLint, Prettier, Vitest y Testing Library. |
 | `<proyecto>/package-lock.json` | Instalación | Lockfile actualizado por `npm install`; lo usan la caché del CI y `npm ci`. |
 | `<proyecto>/vitest.config.*` | Configuración de tests | Configura Vitest: entorno `jsdom`, archivo de setup y opciones de cobertura. (`vitest.config.mjs` en Calculator, `vitest.config.mts` en welcome-home.) |
