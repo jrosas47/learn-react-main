@@ -200,6 +200,10 @@ En *Settings → General → Pull Requests* hay cuatro casillas. Las tres primer
 
 > No hay opción "incorrecta": mientras **Squash** y **Auto-merge** sigan marcadas, todo funciona. El resto es preferencia de estilo del historial.
 
+**Otra casilla — *Always suggest updating pull request branches*:** muestra **siempre** el botón **"Update branch"** cuando `main` avanzó, para traer lo último de `main` a la rama del PR con un clic (aunque no haya conflictos ni lo exija la protección). Cada actualización crea un *merge commit* en la rama del PR, pero **con _squash_ ese ruido se colapsa al fusionar**. Es **opcional** y **no afecta al auto-merge**: actívala por comodidad o déjala desactivada si prefieres menos ruido en los PRs.
+
+> No confundir con *Require branches to be up to date before merging* (de la *branch protection*): esa **obliga** a que la rama esté al día antes de poder fusionar; *Always suggest…* solo **sugiere** el botón, no obliga.
+
 #### Opción A — Desde la UI de GitHub (paso a paso)
 
 **Paso 1 · Habilitar auto-merge y squash**
