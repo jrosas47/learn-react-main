@@ -177,17 +177,33 @@ Varias capas **se solapan en parte**. Esta tabla aclara la utilidad propia de ca
 
 El auto-merge necesita configuración en *Settings* del repositorio (una sola vez). Puedes hacerlo desde la **UI de GitHub** o con la **CLI (`gh`)**.
 
-#### Opción A — Desde la UI de GitHub
+#### Opción A — Desde la UI de GitHub (paso a paso)
 
-1. **Permitir auto-merge y squash:** *Settings → General → Pull Requests* → marca **Allow auto-merge** y **Allow squash merging**.
-2. **Proteger la rama `main`:** *Settings → Branches → Add branch protection rule* (o *Add ruleset*):
-   - **Branch name pattern:** `main`.
-   - Marca **Require status checks to pass before merging**.
-   - En el buscador de checks añade **`CI · 07. Calculator`** y **`CI · react-welcome-home`** *(opcional: `Analyze (javascript)` de CodeQL)*.
-   - **No** marques *Require approvals*: si exiges revisión, los PRs de Dependabot no se auto-fusionarán solos.
-   - **Create / Save**.
+**Paso 1 · Habilitar auto-merge y squash**
 
-> 💡 Si los checks no aparecen en el buscador, haz un push o abre un PR para que el CI corra **al menos una vez**; después GitHub los listará.
+1. Repo → **Settings** → **General**.
+2. Baja a la sección **Pull Requests**.
+3. Marca **Allow auto-merge** y **Allow squash merging** (se guarda solo).
+
+**Paso 2 · Crear la regla de protección de `main`**
+
+1. Repo → **Settings** → **Branches**.
+2. En **Branch protection rules** → **Add branch protection rule**.
+3. **Branch name pattern:** escribe `main`.
+4. Marca **Require a pull request before merging** (impide el `push` directo a `main`).
+   - ⚠️ Deja **Require approvals** en **0** / sin marcar: si exiges aprobación, los PRs de **Dependabot no se auto-fusionarán** solos. (Si prefieres revisión humana, márcalo y asume merge manual.)
+5. Marca **Require status checks to pass before merging**.
+   - *(Opcional, más estricto)* marca también **Require branches to be up to date before merging**.
+6. En el buscador de checks, añade los que quieras **exigir**:
+   - **`CI · 07. Calculator`** ✅ (obligatorio)
+   - **`CI · react-welcome-home`** ✅ (obligatorio)
+   - *(opcionales)* `Analyze (javascript)` (CodeQL), `codecov/project`, `codecov/patch`, `SonarQube Code Analysis`.
+7. *(Opcional)* Marca **Do not allow bypassing the above settings** para que la regla aplique también a administradores.
+8. Pulsa **Create** (o **Save changes**).
+
+> 💡 Si un check no aparece en el buscador, es que aún no ha corrido: haz un push o abre un PR para que se ejecute **al menos una vez** y vuelve a buscarlo.
+>
+> 🔢 **Orden recomendado:** primero mergea el PR `ci/github-actions → main` (para que `main` tenga el CI) y luego crea la regla. Si la creas antes, el propio PR deberá cumplir los checks para poder fusionarse.
 
 #### Opción B — Con la CLI de GitHub (`gh`)
 
