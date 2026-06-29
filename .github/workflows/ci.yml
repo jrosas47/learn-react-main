@@ -43,6 +43,15 @@ jobs:
         # npm ci (con caché) si el lockfile está sincronizado; npm install como respaldo.
         run: npm ci || npm install
 
+      - name: Auditoría de seguridad (npm audit)
+        working-directory: ${{ matrix.project }}
+        shell: bash
+        run: |
+          echo "== Auditoría completa (informativa, no bloquea) =="
+          npm audit || true
+          echo "== Dependencias de PRODUCCIÓN (bloquea si hay vulnerabilidad high/critical) =="
+          npm audit --omit=dev --audit-level=high
+
       - name: Lint (ESLint)
         working-directory: ${{ matrix.project }}
         run: npm run lint
