@@ -97,7 +97,7 @@ jobs:
           fail_ci_if_error: false # una subida fallida no rompe el CI
 
       - name: Análisis SonarQube Cloud
-        uses: SonarSource/sonarqube-scan-action@v5
+        uses: SonarSource/sonarqube-scan-action@v6
         with:
           projectBaseDir: ${{ matrix.project }} # analiza dentro de la carpeta del proyecto (lee su sonar-project.properties)
         env:
