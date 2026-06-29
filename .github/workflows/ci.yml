@@ -11,19 +11,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build · ${{ matrix.project }}
+  ci:
+    name: CI · ${{ matrix.project }}
     runs-on: ubuntu-latest
 
-    # Este repo no tiene package.json raíz ni tests/linters: cada proyecto es
-    # un Vite independiente. El CI verifica que los proyectos ACTIVOS compilen.
-    # Para añadir más, agrega su carpeta a esta lista.
+    # Este repo no tiene package.json raíz: cada proyecto es un Vite independiente.
+    # El CI corre lint + formato + tests + build sobre los proyectos ACTIVOS.
+    # Para añadir más, agrega una entrada { project, slug } a la matriz.
     strategy:
       fail-fast: false
       matrix:
-        project:
-          - "07. Calculator"
-          - "react-welcome-home"
+        include:
+          - project: "07. Calculator"
+            slug: calculator
+          - project: "react-welcome-home"
+            slug: welcome-home
 
     steps:
       - name: Checkout
@@ -38,8 +40,50 @@ jobs:
 
       - name: Install dependencies
         working-directory: ${{ matrix.project }}
-        # npm ci si el lockfile está sincronizado; npm install como respaldo.
+        # npm ci (con caché) si el lockfile está sincronizado; npm install como respaldo.
         run: npm ci || npm install
+
+      - name: Auditoría de seguridad (npm audit)
+        working-directory: ${{ matrix.project }}
+        shell: bash
+        run: |
+          echo "== Auditoría completa (informativa, no bloquea) =="
+          npm audit || true
+          echo "== Dependencias de PRODUCCIÓN (bloquea si hay vulnerabilidad high/critical) =="
+          npm audit --omit=dev --audit-level=high
+
+      - name: Lint (ESLint)
+        working-directory: ${{ matrix.project }}
+        run: npm run lint
+
+      - name: Formato (Prettier)
+        working-directory: ${{ matrix.project }}
+        run: npm run format:check
+
+      - name: Type check (solo si hay TypeScript)
+        working-directory: ${{ matrix.project }}
+        shell: bash
+        # "si usas TypeScript": solo corre tsc --noEmit cuando existe tsconfig.json.
+        run: |
+          if [ -f tsconfig.json ]; then
+            echo "tsconfig.json encontrado → ejecutando tsc --noEmit"
+            npx tsc --noEmit
+          else
+            echo "Sin tsconfig.json: proyecto JS, se omite el type check."
+          fi
+
+      - name: Tests + cobertura (Vitest)
+        working-directory: ${{ matrix.project }}
+        # vitest run --coverage. --if-present evita fallar si un proyecto no define el script.
+        run: npm run coverage --if-present
+
+      - name: Subir reporte de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.slug }}
+          path: ${{ matrix.project }}/coverage
+          if-no-files-found: ignore
 
       - name: Build
         working-directory: ${{ matrix.project }}

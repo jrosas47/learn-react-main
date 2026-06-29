@@ -9,7 +9,9 @@ export default function BrandStrip({ brands }) {
       <div className="brands__marquee">
         <div className="brands__track">
           {loop.map((brand, i) => (
-            <span className="brands__name" key={i}>{brand}</span>
+            <span className="brands__name" key={i}>
+              {brand}
+            </span>
           ))}
         </div>
       </div>

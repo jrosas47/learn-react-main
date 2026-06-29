@@ -19,7 +19,9 @@ export default function CategoryGrid({ categories }) {
               <span className="cat-card__num">{String(i + 1).padStart(2, '0')}</span>
               <h3 className="cat-card__name">{cat.name}</h3>
               <p className="cat-card__blurb">{cat.blurb}</p>
-              <span className="cat-card__cta">Shop {cat.name} <span aria-hidden="true">→</span></span>
+              <span className="cat-card__cta">
+                Shop {cat.name} <span aria-hidden="true">→</span>
+              </span>
             </div>
           </a>
         ))}

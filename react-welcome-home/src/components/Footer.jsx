@@ -24,7 +24,10 @@ export default function Footer({ brand, region, columns, newsletter }) {
             type="email"
             placeholder="your@email.com"
             value={email}
-            onChange={(e) => { setEmail(e.target.value); setDone(false) }}
+            onChange={(e) => {
+              setEmail(e.target.value)
+              setDone(false)
+            }}
             aria-label="Email address"
             required
           />
@@ -41,7 +44,9 @@ export default function Footer({ brand, region, columns, newsletter }) {
             <ul className="footer__list">
               {col.links.map((link) => (
                 <li key={link}>
-                  <a className="footer__link" href="#top">{link}</a>
+                  <a className="footer__link" href="#top">
+                    {link}
+                  </a>
                 </li>
               ))}
             </ul>
