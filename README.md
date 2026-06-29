@@ -221,6 +221,7 @@ Análisis unificado de **calidad + seguridad + cobertura** con una *Quality Gate
 3. **Token:** genera uno en *My Account → Security* y guárdalo en GitHub como secret **`SONAR_TOKEN`** (un solo token sirve para ambos proyectos).
 4. **Config por proyecto:** cada carpeta tiene su `sonar-project.properties`. Los `projectKey`/`organization` **deben coincidir exactamente** con los de sonarcloud.io.
 5. **CI:** el paso `SonarSource/sonarqube-scan-action@v5` corre dentro del job de matriz con `projectBaseDir: ${{ matrix.project }}`, y el `Checkout` usa `fetch-depth: 0` (Sonar necesita el historial para detectar "código nuevo" y decorar PRs).
+6. **Renombra la rama principal a `main`:** al crear el proyecto, Sonar nombra la rama principal `master` por defecto y **no se sincroniza** con la de GitHub. En cada proyecto: *Administration → Branches and Pull Requests →* menú **⋯ → Rename →** `main`. Hazlo **antes** de analizar `main` (si ya hubiera una rama `main` suelta, bórrala primero y luego renombra `master`). Importa porque la *Quality Gate* sobre "código nuevo" se calcula comparando contra la rama principal.
 
 ```properties
 # <proyecto>/sonar-project.properties
@@ -243,6 +244,25 @@ sonar.javascript.lcov.reportPaths=coverage/lcov.info
 | **Badge** | En el proyecto Sonar → *Information* obtienes el markdown del badge de Quality Gate para el README. |
 
 > ⚠️ Si los `projectKey`/`organization` del `.properties` no coinciden con sonarcloud.io, el paso del CI **falla**. Verifícalos en *Proyecto → Information*.
+
+### Cuándo aparece la cobertura
+
+La cobertura se sube **en el mismo run** (el paso de cobertura corre antes que el de Sonar, así que el `lcov.info` viaja con el análisis). Dónde la ves depende de la rama:
+
+| Vista en Sonar | ¿Cobertura? |
+|---|---|
+| Rama analizada (p. ej. `ci/github-actions`) | **Sí, inmediata** — selecciónala en el desplegable de ramas del proyecto. |
+| Vista principal (`main`) | **Tras mergear el PR** y que el CI corra en `main` (es el % que muestra el badge). |
+
+> Si abres el proyecto y lo ves "vacío", probablemente estás en la rama principal aún sin analizar: cambia el desplegable a la rama de *feature*.
+
+### Badge de Quality Gate (opcional)
+
+En el proyecto Sonar → *Information* obtienes el markdown del badge. Como hay **dos** proyectos, tendrías dos badges (uno por proyecto):
+
+```markdown
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=jrosas47_learn-react-calculator&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=jrosas47_learn-react-calculator)
+```
 
 ## Archivos que componen la configuración
 
