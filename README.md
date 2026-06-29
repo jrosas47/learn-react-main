@@ -205,6 +205,22 @@ En *Settings → General → Pull Requests* hay cuatro casillas. Las tres primer
 
 > No confundir con *Require branches to be up to date before merging* (de la *branch protection*): esa **obliga** a que la rama esté al día antes de poder fusionar; *Always suggest…* solo **sugiere** el botón, no obliga.
 
+#### Flujo de ramas: tras un *squash merge*, crea una rama nueva
+
+El **squash merge** crea en `main` un commit **nuevo** (SHA distinto) con el mismo contenido que tu rama; **no** incorpora los commits originales de la rama. Por eso, después de fusionar, GitHub sigue viendo tu rama como **"divergente"** (mismo contenido, distinta historia) y el botón **"New pull request"** te ofrece PRs *fantasma* (con diff vacío).
+
+> Síntoma típico: "main y mi rama parecen distintas y el botón de nuevo PR siempre está activo, aunque ya fusioné". Es **esperado** con squash, no un error.
+
+**Regla:** tras fusionar un PR con *squash*, **borra la rama y crea una nueva desde `main` actualizado** para el siguiente cambio. No reutilices la rama ya fusionada.
+
+```bash
+git checkout main
+git pull origin main                       # trae el commit squash recién fusionado
+git branch -D <rama-fusionada>             # borra local (squash → git no la ve como mergeada)
+git push origin --delete <rama-fusionada>  # borra remota (o el botón "Delete branch" del PR)
+git checkout -b <rama-nueva>               # parte limpio desde main para lo siguiente
+```
+
 #### Classic vs. Ruleset (cuál usar)
 
 GitHub ofrece **dos sistemas** para proteger ramas. **Aquí seguimos el _classic_** (más simple y suficiente para proteger `main`); el *ruleset* es la alternativa moderna y más potente que GitHub recomienda a futuro. Ambos logran lo mismo: exigir PR + checks del CI en verde.
